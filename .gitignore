@@ -23,5 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Firebase configuration files
+.firebase/
+.firebaserc
+
 # files to ignore
 todo.md
+.env

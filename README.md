@@ -3,6 +3,9 @@
 - [react](https://fr.legacy.reactjs.org/docs/getting-started.html) X [typescript](https://www.typescriptlang.org/) X [tailwind css](https://tailwindcss.com/) X [firebase](https://firebase.google.com/) X [docker-compose](https://docs.docker.com/compose/)
 
 ```bash
+docker-compose up -d
+docker-compose down -v
+
 $ npm -v
 10.9.2
 
@@ -16,9 +19,15 @@ npm run dev
 
 ## Ressources
 
-- [mockup excalidraw](https://excalidraw.com/)
-- [schémas de la base de données](https://lucid.app/lucidchart/ba0904a9-8d51-4b3e-bf13-128b1d7c0789/edit?invitationId=inv_ab6d6607-ad73-4092-96ac-0e6e6d53afa5&page=0_0#)
+- [mockup excalidraw](./rsrc/mock.png)
+- [schémas de la base de données](./rsrc/DB.png)
 
 ### Autres ressources
 
 - [projet react-ts avec vite](https://vite.dev/guide/)
+- [ajouter tailwind css](https://tailwindcss.com/docs/installation/using-vite)
+- [ajouter de firebase](https://dev.to/sahilverma_dev/firebase-with-react-and-typescript-a-comprehensive-guide-3fn5)
+- dockerize
+  - <https://www.docker.com/blog/how-to-dockerize-react-app/>
+  - <https://docs.docker.com/reference/samples/>
+  - <https://dev.to/nandhakumar/step-by-step-guide-to-dockerize-react-app-created-using-vite-2jg3>

@@ -1,21 +1,20 @@
 import React from "react";
-import { Link, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Menu from "./components/ui/Menu";
 import Profile from "./components/ui/Profile";
+import NavBar from "./components/ui/NavBar";
+import NoMatch from "./components/NoMatch";
 
 export default function App() {
     return (
-        <div>
-            <nav>
-                <ul>
-                    <li><Link to="/">Notesapp</Link></li>
-                    <li><Link to="/">Menu</Link></li>
-                    <li><Link to="/profile">Profil</Link></li>
-                </ul>
-            </nav>
+        <Router>
+            <NavBar />
 
-            <Route path="/" Component={Menu} />
-            <Route path="/about" Component={Profile} />
-        </div>
+            <Routes>
+                <Route path="/" element={<Menu />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="*" element={<NoMatch />} />
+            </Routes>
+        </Router>
     );
 }

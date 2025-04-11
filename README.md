@@ -2,6 +2,8 @@
 
 - [react](https://fr.legacy.reactjs.org/docs/getting-started.html) X [typescript](https://www.typescriptlang.org/) X [tailwind css](https://tailwindcss.com/) X [firebase](https://firebase.google.com/) X [docker-compose](https://docs.docker.com/compose/)
 
+- [http://localhost:5173/](http://localhost:5173/)
+
 ```bash
 docker-compose up -d
 docker-compose down -v

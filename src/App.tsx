@@ -1,6 +1,9 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Root from "./components/ui/Root";
+import Login from './auth/Login'
+import Register from './auth/Register'
+import ForgotPassword from './auth/ForgotPassword'
 import Home from "./components/ui/Home";
 import Menu from "./components/ui/navbar/Menu";
 import Profile from "./components/ui/navbar/Profile";
@@ -11,9 +14,15 @@ export default function App() {
         <Router>
             <Routes>
                 <Route path="/" element={<Root />} />
+
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+
                 <Route path="/home" element={<Home />} />
                 <Route path="/menu" element={<Menu />} />
                 <Route path="/profile" element={<Profile />} />
+
                 <Route path="*" element={<NoMatch />} />
             </Routes>
         </Router>

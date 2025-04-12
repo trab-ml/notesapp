@@ -31,3 +31,4 @@ dist-ssr
 todo.md
 .env
 .dockerignore
+./rsrc/mock.excalidraw

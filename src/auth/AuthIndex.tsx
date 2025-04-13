@@ -1,17 +1,76 @@
 import React from 'react';
-import AuthStatus from './AuthStatus';
-import Login from './Login'
-import Register from './Register'
+import { NavLink } from 'react-router-dom';
+import { NameField, EmailField, PasswordField, SubmitButton } from '../components/ui/form/Field';
+import { ILogin, IName } from '../types/Form';
 
-// connexion, inscription, 'Accès anonyme'... 
-
-const AuthIndex: React.FC = () => {
-    return (
-        <main className="grid min-h-full place-items-center bg-white px-6 py-24 sm:py-32 lg:px-8">
-            <AuthStatus />
-            <Login />
-            <Register />
-        </main>);
+const firstname: IName = {
+    nameType: 'firstname',
+    placeholder: 'John',
+    labelHtmlFor: 'Prénom',
+    labelValue: 'Votre prénom'
 }
+
+const lastname: IName = {
+    nameType: 'lastname',
+    placeholder: 'Doe',
+    labelHtmlFor: 'Nom',
+    labelValue: 'Votre nom'
+}
+
+/**
+ * Reusable component for authentification
+ * @param isLogin determine the type of the component (login or registering)
+ * @returns 
+ */
+const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
+    const title = isLogin ? "Se Connecter" : "S'inscrire";
+
+    return (
+        <div className="relative py-1 sm:max-w-xl sm:mx-auto">
+            <div
+                className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-sky-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl">
+            </div>
+
+            <div className="relative px-2 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+                <div className="max-w-md mx-auto">
+                    <div>
+                        <h2 className="text-2xl font-semibold text-center">{title}</h2>
+
+                        {
+                            isLogin ?
+                                <p className="mt-2 text-center text-sm text-gray-600 max-w md:text-lg">
+                                    Où <NavLink to="/register" className="font-medium text-blue-600 hover:text-blue-500">Créer un compte</NavLink>
+                                </p>
+                                : ''
+
+                        }
+                    </div>
+
+                    <div className="divide-y divide-gray-200">
+                        <div className="py-4 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
+                            {!isLogin ?
+                                <>
+                                    <NameField {...firstname} />
+                                    <NameField {...lastname} />
+                                </>
+                                : ''
+                            }
+                            <EmailField />
+                            <PasswordField />
+                            <SubmitButton buttonText={title} />
+
+                            <div className="flex items-center justify-between">
+                                {isLogin ?
+                                    <NavLink to='/forgot-password' className="md:text-xs font-medium text-blue-600 hover:text-blue-500">Mot de passe oublié?</NavLink>
+                                    : ''}
+
+                                <NavLink to='/home' className="md:text-xs font-medium text-blue-600 hover:text-blue-500">Accéder sans compte</NavLink>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>);
+};
 
 export default AuthIndex;

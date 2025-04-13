@@ -1,8 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Root from "./components/ui/Root";
-import Login from './auth/Login'
-import Register from './auth/Register'
 import ForgotPassword from './auth/ForgotPassword'
 import Home from "./components/ui/Home";
 import Menu from "./components/ui/navbar/Menu";
@@ -13,10 +11,10 @@ export default function App() {
     return (
         <Router>
             <Routes>
-                <Route path="/" element={<Root />} />
+                <Route path="/" element={<Root isLogin={true} />} />
 
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+                <Route path="/register" element={<Root isLogin={false} />} />
+
                 <Route path="/forgot-password" element={<ForgotPassword />} />
 
                 <Route path="/home" element={<Home />} />

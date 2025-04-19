@@ -3,9 +3,7 @@ interface ILogin {
 }
 
 interface IName {
-    nameType: string; // Prénom, Nom
-    placeholder: string;
-    labelHtmlFor: string;
+    nameType: string;
     labelValue: string;
 }
 

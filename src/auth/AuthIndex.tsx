@@ -5,16 +5,12 @@ import { ILogin, IName } from '../types/Form';
 
 const firstname: IName = {
     nameType: 'firstname',
-    placeholder: 'John',
-    labelHtmlFor: 'Prénom',
-    labelValue: 'Votre prénom'
+    labelValue: 'Votre prénom (exemple: John)'
 }
 
 const lastname: IName = {
     nameType: 'lastname',
-    placeholder: 'Doe',
-    labelHtmlFor: 'Nom',
-    labelValue: 'Votre nom'
+    labelValue: 'Votre nom (exemple: Doe)'
 }
 
 /**

@@ -1,6 +1,6 @@
 import React from 'react';
-import AuthIndex from '../../auth/AuthIndex'
-import { ILogin } from '../../types/Form';
+import AuthIndex from '../../../auth/AuthIndex'
+import { ILogin } from '../../../types/Form';
 
 const Root: React.FC<ILogin> = ({isLogin}) => {
     return (

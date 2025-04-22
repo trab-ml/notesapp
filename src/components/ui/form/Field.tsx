@@ -1,6 +1,6 @@
 import React from "react";
 import { ISubmitButton } from "../../../types/ISubmitButton";
-import { IName } from "../../../types/Form";
+import { IName, IOnChange } from "../../../types/Form";
 
 const NameField: React.FC<IName> = (nameInfos) => {
     return (
@@ -12,6 +12,7 @@ const NameField: React.FC<IName> = (nameInfos) => {
                 placeholder={nameInfos.labelValue}
                 type="text"
                 className="peer placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:borer-rose-600"
+                required
             />
             <label
                 htmlFor={nameInfos.nameType}
@@ -23,7 +24,7 @@ const NameField: React.FC<IName> = (nameInfos) => {
     );
 };
 
-const EmailField: React.FC = () => {
+const EmailField: React.FC<IOnChange> = ({state, setState}) => {
     return (
         <div className="relative">
             <input
@@ -33,6 +34,9 @@ const EmailField: React.FC = () => {
                 type="text"
                 className="peer placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:borer-rose-600"
                 placeholder="Email address"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                required
             />
             <label
                 htmlFor="email"
@@ -44,7 +48,7 @@ const EmailField: React.FC = () => {
     );
 };
 
-const PasswordField: React.FC = () => {
+const PasswordField: React.FC<IOnChange> = ({state, setState}) => {
     return (
         <div className="relative">
             <input
@@ -54,6 +58,9 @@ const PasswordField: React.FC = () => {
                 type="password"
                 className="peer placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:borer-rose-600"
                 placeholder="Password"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                required
             />
             <label
                 htmlFor="password"
@@ -67,7 +74,7 @@ const PasswordField: React.FC = () => {
 
 const SubmitButton: React.FC<ISubmitButton> = ({ buttonText }) => {
     return (
-        <div className="relative flex justify-center">
+        <div className="mt-4 relative flex justify-center">
             <button className="bg-cyan-500 text-white rounded-md px-2 py-1 cursor-pointer">
                 {buttonText}
             </button>

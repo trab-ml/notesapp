@@ -5,9 +5,17 @@ interface ILogin {
 interface IName {
     nameType: string;
     labelValue: string;
+    state: string;
+    setState: (val: string) => void;
+}
+
+interface IOnChange {
+    state: string; 
+    setState: (val: string) => void;
 }
 
 export {
     ILogin,
-    IName
+    IName,
+    IOnChange
 }

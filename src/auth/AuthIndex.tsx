@@ -17,25 +17,28 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
  */
 const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
     const [email, setEmail] = useState("");
+    const [isEmailValid, setIsEmailValid] = useState(true);
     const [password, setPassword] = useState("");
+    const [isPasswordValid, setIsPasswordValid] = useState(true);
     const [displayName, setDisplayName] = useState("");
 
     const firstname: IName = {
         nameType: "firstname",
         labelValue: "Votre prénom (exemple: John)",
         state: displayName,
-        setState: setDisplayName
+        setState: setDisplayName,
     };
-    
+
     const lastname: IName = {
         nameType: "lastname",
         labelValue: "Votre nom (exemple: Doe)",
         state: displayName,
-        setState: setDisplayName
+        setState: setDisplayName,
     };
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+
         try {
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
@@ -83,14 +86,38 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
                                 {!isLogin ? (
                                     <>
                                         <NameField {...firstname} />
+
+                                        {/* space */}
+                                        <span className="flex w-full mt-4"></span>
+
                                         <NameField {...lastname} />
+
+                                        {/* space */}
+                                        <span className="flex w-full mt-4"></span>
                                     </>
                                 ) : (
                                     ""
                                 )}
-                                <EmailField state={email} setState={setEmail} />
-                                <PasswordField state={password} setState={setPassword} />
-                                <SubmitButton buttonText={title} />
+                                <EmailField
+                                    state={email}
+                                    setState={setEmail}
+                                    isFieldValid={isEmailValid}
+                                    setIsFieldValid={setIsEmailValid}
+                                />
+
+                                {/* space */}
+                                <span className="flex w-full mt-4"></span>
+
+                                <PasswordField
+                                    state={password}
+                                    setState={setPassword}
+                                    isFieldValid={isPasswordValid}
+                                    setIsFieldValid={setIsPasswordValid}
+                                />
+                                <SubmitButton
+                                    buttonText={title}
+                                    canSubmit={isEmailValid && isPasswordValid}
+                                />
                             </form>
 
                             <div className="flex items-center justify-between">

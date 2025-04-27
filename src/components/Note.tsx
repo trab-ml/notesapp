@@ -1,7 +1,7 @@
 import React from "react";
-import visibility_icon from "../assets/imgs/visibility.svg";
-import edit_icon from "../assets/imgs/edit.svg";
-import delete_icon from "../assets/imgs/delete.svg";
+import visibility_icon from "../assets/icons/visibility.svg";
+import edit_icon from "../assets/icons/edit.svg";
+import delete_icon from "../assets/icons/delete.svg";
 
 
 const Note: React.FC = () => {

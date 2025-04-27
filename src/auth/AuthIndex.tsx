@@ -8,8 +8,8 @@ import {
 } from "../components/ui/form/Field";
 import { ILogin, IName } from "../types/Form";
 import { auth } from "../firebase/firebase";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+  
 /**
  * Reusable component for authentification
  * @param isLogin determine the type of the component (login or registering)
@@ -36,6 +36,17 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
         setState: setDisplayName,
     };
 
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          console.log("User logged in successfully");
+        } catch (error) {
+          console.error("Error logging in:", error);
+        }
+      };
+      
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -82,7 +93,7 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
 
                     <div className="divide-y divide-gray-200">
                         <div className="py-4 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-                            <form onSubmit={handleRegister}>
+                            <form onSubmit={isLogin ? handleLogin : handleRegister}>
                                 {!isLogin ? (
                                     <>
                                         <NameField {...firstname} />
@@ -120,7 +131,7 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
                                 />
                             </form>
 
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-1">
                                 {isLogin ? (
                                     <NavLink
                                         to="/forgot-password"

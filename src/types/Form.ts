@@ -16,8 +16,15 @@ interface IOnChange {
     setIsFieldValid: (val: boolean) => void;
 }
 
+interface ISubmitButton {
+    buttonText: string;
+    canSubmit: boolean;
+    // onClick: (e: React.FormEvent) => void
+}
+
 export {
     ILogin,
     IName,
-    IOnChange
+    IOnChange,
+    ISubmitButton
 }

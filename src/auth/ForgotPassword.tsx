@@ -14,6 +14,7 @@ const ForgotPassword: React.FC = () => {
         <form className="py-4 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
           <EmailField />
           <SubmitButton buttonText={'Changer le mot de passe'} />
+          {/* <p>Un email vous a été envoyé pour rénitialiser votre mot de passe.</p> */}
         </form>
       </div>
     </div>);

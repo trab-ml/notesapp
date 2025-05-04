@@ -1,6 +1,5 @@
 import React from "react";
-import { ISubmitButton } from "../../../types/ISubmitButton";
-import { IName, IOnChange } from "../../../types/Form";
+import { IName, IOnChange, ISubmitButton } from "../../../types/Form";
 
 const validateField = (fieldRegex, value, setState, setValid) => {
     setState(value);
@@ -22,6 +21,8 @@ const NameField: React.FC<IName> = (nameInfos) => {
                 placeholder={nameInfos.labelValue}
                 type="text"
                 className="peer placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:borer-rose-600"
+                value={nameInfos.state}
+                onChange={(e) => nameInfos.setState(e.target.value)}
                 required
             />
             <label
@@ -61,7 +62,7 @@ const EmailField: React.FC<IOnChange> = ({
                         emailRegex,
                         e.target.value,
                         setState,
-                        setIsFieldValid,
+                        setIsFieldValid
                     )
                 }
                 required
@@ -103,7 +104,7 @@ const PasswordField: React.FC<IOnChange> = ({
                         passwordRegex,
                         e.target.value,
                         setState,
-                        setIsFieldValid,
+                        setIsFieldValid
                     )
                 }
                 required
@@ -126,10 +127,11 @@ const PasswordField: React.FC<IOnChange> = ({
     );
 };
 
-const SubmitButton: React.FC<ISubmitButton> = ({ buttonText, canSubmit }) => {
+const SubmitButton: React.FC<ISubmitButton> = ({ buttonText, canSubmit }) => {   
     return (
         <div className="mt-4 relative flex justify-center">
             <button
+                id="authSubmitButton"
                 className={`bg-cyan-500 text-white rounded-md px-2 py-1 cursor-pointer ${
                     canSubmit ? "" : "opacity-50"
                 }`}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
     NameField,
@@ -8,8 +8,25 @@ import {
 } from "../components/ui/form/Field";
 import { ILogin, IName } from "../types/Form";
 import { auth } from "../firebase/firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
-  
+import {
+    createUserWithEmailAndPassword,
+    sendEmailVerification,
+    signInWithEmailAndPassword,
+    updateProfile,
+} from "firebase/auth";
+import { useAuth } from "../hooks/useAuth";
+
+// : React.FC<(val: boolean) => void>
+const toggleAuthSubmitButton = (val) => {
+    // document.getElementById("authSubmitButton").disabled = true;
+    const targetButton = document.getElementById("authSubmitButton");
+
+    if (targetButton) {
+        targetButton.setAttribute("disabled", val.toString());
+        targetButton.style.opacity = val == false ? "1" : "0.5";
+    }
+};
+
 /**
  * Reusable component for authentification
  * @param isLogin determine the type of the component (login or registering)
@@ -20,33 +37,89 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
     const [isEmailValid, setIsEmailValid] = useState(true);
     const [password, setPassword] = useState("");
     const [isPasswordValid, setIsPasswordValid] = useState(true);
-    const [displayName, setDisplayName] = useState("");
+    const [firstnameValue, setFirstnameValue] = useState("");
+    const [lastnameValue, setLastnameValue] = useState("");
+    const { user, loading } = useAuth();
 
     const firstname: IName = {
         nameType: "firstname",
         labelValue: "Votre prénom (exemple: John)",
-        state: displayName,
-        setState: setDisplayName,
+        state: firstnameValue,
+        setState: setFirstnameValue,
     };
 
     const lastname: IName = {
         nameType: "lastname",
         labelValue: "Votre nom (exemple: Doe)",
-        state: displayName,
-        setState: setDisplayName,
+        state: lastnameValue,
+        setState: setLastnameValue,
     };
+
+    useEffect(() => {
+        console.log("First load");
+        toggleAuthSubmitButton(false);
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        toggleAuthSubmitButton(true); // désactiver pendant quelques s // réactiver après (tps de vérifier validation de l'email)!
 
         try {
-          await signInWithEmailAndPassword(auth, email, password);
-          console.log("User logged in successfully");
+            await signInWithEmailAndPassword(auth, email, password);
+
+            // auth.onAuthStateChanged(function (user) {
+            //     if (user) {
+            //         // User have an account!
+            //         console.log("email verified?:" + user.emailVerified);
+
+            //         if (user.emailVerified) {
+            //             sendEmailVerification(user).then(() => {
+            //                 alert(
+            //                     "To login to your account, first verify your email!"
+            //                 );
+            //             });
+            //         }
+            //     } else {
+            //         // User is signed out.
+            //         console.log("No user signed in!");
+            //     }
+            // });
+            // or
+
+            if (user) {
+                console.log("User have an account");
+
+                if (!user.emailVerified) {
+                    sendEmailVerification(user).then(() => {
+                        alert(
+                            "To login to your account, first verify your email!"
+                        );
+                    });
+                } else {
+                    window.location.pathname = "/home";
+                }
+            }
+
+            // console.log("User logged in successfully");
         } catch (error) {
-          console.error("Error logging in:", error);
+            const errorCode = error.code;
+            let errorMessage;
+
+            if (errorCode == "auth/invalid-credential") {
+                errorMessage = "Email ou Mot de passe incorrect";
+            } else {
+                errorMessage = error.message;
+            }
+
+            alert(errorMessage);
+
+            console.error("Error logging in:", error);
+
+            // toggleAuthSubmitButton(false);
+            window.location.pathname = "/";
         }
-      };
-      
+    };
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -56,9 +129,63 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
                 email,
                 password
             );
-            await updateProfile(userCredential.user, { displayName });
-            console.log("User registered successfully");
+            await updateProfile(userCredential.user, {
+                displayName: firstnameValue + " " + lastnameValue,
+            });
+
+            auth.onAuthStateChanged(function (user) {
+                if (user) {
+                    // User is signed in.
+                    const displayName = user.displayName;
+                    const email = user.email;
+                    const emailVerified = user.emailVerified;
+                    const photoURL = user.photoURL;
+                    const isAnonymous = user.isAnonymous;
+                    const uid = user.uid;
+                    const providerData = user.providerData;
+
+                    console.log(
+                        displayName +
+                            " " +
+                            email +
+                            " " +
+                            emailVerified +
+                            " " +
+                            photoURL +
+                            " " +
+                            isAnonymous +
+                            " " +
+                            uid +
+                            " " +
+                            providerData
+                    );
+
+                    sendEmailVerification(user).then(() => {
+                        alert("Email verification sent!");
+                        window.location.pathname = "/";
+                    });
+                } else {
+                    // User is signed out.
+                    console.log("No user signed in!");
+                }
+            });
+
+            // console.log("User registered successfully");
         } catch (error) {
+            const errorCode = error.code;
+            let errorMessage;
+
+            if (errorCode == "auth/weak-password") {
+                errorMessage = "The password is too weak.";
+            } else if (errorCode == "auth/email-already-in-use") {
+                errorMessage = "This email is already used.";
+            } else {
+                // errorMessage = "Service momentanément indisponible.";
+                errorMessage = error.message;
+            }
+
+            alert(errorMessage);
+
             console.error("Error registering user:", error);
         }
     };
@@ -93,7 +220,11 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
 
                     <div className="divide-y divide-gray-200">
                         <div className="py-4 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-                            <form onSubmit={isLogin ? handleLogin : handleRegister}>
+                            <form
+                                onSubmit={
+                                    isLogin ? handleLogin : handleRegister
+                                }
+                            >
                                 {!isLogin ? (
                                     <>
                                         <NameField {...firstname} />
@@ -128,10 +259,12 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
                                 <SubmitButton
                                     buttonText={title}
                                     canSubmit={isEmailValid && isPasswordValid}
+                                    // onClick={isLogin ? handleLogin : handleRegister}
                                 />
                             </form>
 
                             <div className="flex items-center justify-between gap-1">
+                                {/* Pop up pour les mots de passe oubliés! */}
                                 {isLogin ? (
                                     <NavLink
                                         to="/forgot-password"

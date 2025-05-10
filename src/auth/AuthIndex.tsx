@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
     NameField,
@@ -14,18 +14,6 @@ import {
     signInWithEmailAndPassword,
     updateProfile,
 } from "firebase/auth";
-import { useAuth } from "../hooks/useAuth";
-
-// : React.FC<(val: boolean) => void>
-const toggleAuthSubmitButton = (val) => {
-    // document.getElementById("authSubmitButton").disabled = true;
-    const targetButton = document.getElementById("authSubmitButton");
-
-    if (targetButton) {
-        targetButton.setAttribute("disabled", val.toString());
-        targetButton.style.opacity = val == false ? "1" : "0.5";
-    }
-};
 
 /**
  * Reusable component for authentification
@@ -39,7 +27,9 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
     const [isPasswordValid, setIsPasswordValid] = useState(true);
     const [firstnameValue, setFirstnameValue] = useState("");
     const [lastnameValue, setLastnameValue] = useState("");
-    const { user, loading } = useAuth();
+    const [isFormValid, setIsFormValid] = useState(
+        isEmailValid && isPasswordValid
+    );
 
     const firstname: IName = {
         nameType: "firstname",
@@ -55,52 +45,28 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
         setState: setLastnameValue,
     };
 
-    useEffect(() => {
-        console.log("First load");
-        toggleAuthSubmitButton(false);
-    }, []);
-
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        toggleAuthSubmitButton(true); // désactiver pendant quelques s // réactiver après (tps de vérifier validation de l'email)!
+        setIsFormValid(false);
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-
-            // auth.onAuthStateChanged(function (user) {
-            //     if (user) {
-            //         // User have an account!
-            //         console.log("email verified?:" + user.emailVerified);
-
-            //         if (user.emailVerified) {
-            //             sendEmailVerification(user).then(() => {
-            //                 alert(
-            //                     "To login to your account, first verify your email!"
-            //                 );
-            //             });
-            //         }
-            //     } else {
-            //         // User is signed out.
-            //         console.log("No user signed in!");
-            //     }
-            // });
-            // or
+            const credential = await signInWithEmailAndPassword(
+                auth,
+                email,
+                password
+            );
+            const user = credential.user;
 
             if (user) {
                 console.log("User have an account");
 
-                if (!user.emailVerified) {
-                    sendEmailVerification(user).then(() => {
-                        alert(
-                            "To login to your account, first verify your email!"
-                        );
-                    });
-                } else {
+                if (user.emailVerified) {
                     window.location.pathname = "/home";
+                } else {
+                    alert("To login to your account, first verify your email!");
+                    setIsFormValid(true);
                 }
             }
-
-            // console.log("User logged in successfully");
         } catch (error) {
             const errorCode = error.code;
             let errorMessage;
@@ -108,15 +74,14 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             if (errorCode == "auth/invalid-credential") {
                 errorMessage = "Email ou Mot de passe incorrect";
             } else {
-                errorMessage = error.message;
+                errorMessage = "Service momentanément indisponible.";
             }
 
             alert(errorMessage);
 
             console.error("Error logging in:", error);
 
-            // toggleAuthSubmitButton(false);
-            window.location.pathname = "/";
+            setIsFormValid(true);
         }
     };
 
@@ -135,42 +100,14 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
 
             auth.onAuthStateChanged(function (user) {
                 if (user) {
-                    // User is signed in.
-                    const displayName = user.displayName;
-                    const email = user.email;
-                    const emailVerified = user.emailVerified;
-                    const photoURL = user.photoURL;
-                    const isAnonymous = user.isAnonymous;
-                    const uid = user.uid;
-                    const providerData = user.providerData;
-
-                    console.log(
-                        displayName +
-                            " " +
-                            email +
-                            " " +
-                            emailVerified +
-                            " " +
-                            photoURL +
-                            " " +
-                            isAnonymous +
-                            " " +
-                            uid +
-                            " " +
-                            providerData
-                    );
-
                     sendEmailVerification(user).then(() => {
                         alert("Email verification sent!");
                         window.location.pathname = "/";
                     });
                 } else {
-                    // User is signed out.
                     console.log("No user signed in!");
                 }
             });
-
-            // console.log("User registered successfully");
         } catch (error) {
             const errorCode = error.code;
             let errorMessage;
@@ -180,13 +117,10 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             } else if (errorCode == "auth/email-already-in-use") {
                 errorMessage = "This email is already used.";
             } else {
-                // errorMessage = "Service momentanément indisponible.";
-                errorMessage = error.message;
+                errorMessage = "Service momentanément indisponible.";
             }
 
             alert(errorMessage);
-
-            console.error("Error registering user:", error);
         }
     };
 
@@ -258,13 +192,12 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
                                 />
                                 <SubmitButton
                                     buttonText={title}
-                                    canSubmit={isEmailValid && isPasswordValid}
-                                    // onClick={isLogin ? handleLogin : handleRegister}
+                                    canSubmit={isFormValid}
                                 />
                             </form>
 
                             <div className="flex items-center justify-between gap-1">
-                                {/* Pop up pour les mots de passe oubliés! */}
+                                {/* todo: Pop up pour les mots de passe oubliés! */}
                                 {isLogin ? (
                                     <NavLink
                                         to="/forgot-password"

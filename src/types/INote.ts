@@ -1,9 +1,12 @@
+import { Timestamp } from "firebase/firestore";
+
 export interface INote {
     id?: string;
     title: string;
-    description: string;
+    content: string;
     isPublic: boolean;
-    createdAt: Date;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
     tags: string[];
-    authorId: string;
+    ownerId: string;
 }

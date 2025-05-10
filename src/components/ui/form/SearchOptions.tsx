@@ -7,11 +7,11 @@ const SearchOptions: React.FC = () => {
                 <input
                     type="text"
                     placeholder="example: react"
-                    className="w-full md:w-80 px-3 h-10 rounded-l border-2 border-sky-500 focus:outline-none focus:border-sky-500"
+                    className="w-full md:w-80 text-indigo-600 px-3 h-10 rounded-l border-2 border-indigo-600 focus:outline-none focus:border-indigo-600"
                 />
                 <button
                     type="submit"
-                    className="bg-sky-500 text-white rounded-r px-2 md:px-3 py-0 md:py-1 cursor-pointer"
+                    className="bg-indigo-600 text-white rounded-r px-2 md:px-3 py-0 md:py-1 cursor-pointer"
                 >
                     Rechercher
                 </button>
@@ -22,7 +22,7 @@ const SearchOptions: React.FC = () => {
                 <select
                     id="sortBy"
                     name="sortBy"
-                    className="w-2/6 h-10 border-2 border-sky-500 focus:outline-none focus:border-sky-500 text-sky-500 rounded px-2 md:px-3 py-0 md:py-1 tracking-wider"
+                    className="w-2/6 h-10 border-2 border-indigo-600 focus:outline-none focus:border-indigo-600 text-indigo-600 rounded px-2 md:px-3 py-0 md:py-1 tracking-wider"
                 >
                     <option value="all" defaultValue="">
                         Tout
@@ -34,7 +34,7 @@ const SearchOptions: React.FC = () => {
                 <select
                     id="filterBy"
                     name="filterBy"
-                    className="w-2/6 h-10 border-2 border-sky-500 focus:outline-none focus:border-sky-500 text-sky-500 rounded px-2 md:px-3 py-0 md:py-1 tracking-wider"
+                    className="w-2/6 h-10 border-2 border-indigo-600 focus:outline-none focus:border-indigo-600 text-indigo-600 rounded px-2 md:px-3 py-0 md:py-1 tracking-wider"
                 >
                     <option value="all" defaultValue="">
                         Aucun

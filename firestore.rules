@@ -1,9 +1,25 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    match /notes/{noteId} {
+      // A user could read its notes and public ones
+      allow read: if request.auth != null && (
+        resource.data.isPublic == true || 
+        resource.data.ownerId == request.auth.uid
+      );
+      
+      // An authenticated user could add notes
+      allow create: if request.auth != null && 
+                     request.resource.data.ownerId == request.auth.uid;
+      
+      // A user could update/delete its
+      allow update, delete: if request.auth != null && 
+                             resource.data.ownerId == request.auth.uid;
     }
+    
+    // A user could update its profile informations
+    // match /users/{userId} {
+    //  allow read, write: if request.auth != null && request.auth.uid == userId;
+    // }
   }
 }

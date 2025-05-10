@@ -8,6 +8,8 @@
 docker-compose up -d
 docker-compose down -v
 
+firebase deploy --only firestore:rules
+
 $ npm -v
 10.9.2
 

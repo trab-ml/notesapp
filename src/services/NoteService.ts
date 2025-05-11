@@ -34,7 +34,30 @@ export const getNote = async (noteId: string): Promise<INote | null> => {
     }
 };
 
-export const getVisibleNotes = async (userId: string): Promise<INote[]> => {
+export const getVisibleNotes = async (): Promise<INote[]> => {
+    try {
+        const notesRef = collection(db, "notes");
+
+        const publicQuery = query(notesRef, where("isPublic", "==", true));
+
+        const [publicSnap] = await Promise.all([
+            getDocs(publicQuery),
+        ]);
+
+        const notesMap = new Map<string, INote>();
+
+        publicSnap.forEach((doc) =>
+            notesMap.set(doc.id, { id: doc.id, ...doc.data() } as INote)
+        );
+
+        return Array.from(notesMap.values());
+    } catch (error) {
+        console.error("Error fetching visible notes:", error);
+        throw error;
+    }
+};
+
+export const getUserNotesAndPublicOnes = async (userId: string): Promise<INote[]> => {
     try {
         const notesRef = collection(db, "notes");
 
@@ -57,7 +80,7 @@ export const getVisibleNotes = async (userId: string): Promise<INote[]> => {
 
         return Array.from(notesMap.values());
     } catch (error) {
-        console.error("Error fetching visible notes:", error);
+        console.error("Error fetching user notes and public ones:", error);
         throw error;
     }
 };

@@ -9,12 +9,48 @@ import {
     doc,
     query,
     where,
+    orderBy,
+    Timestamp,
+    DocumentData,
+    QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { INote } from "../types/INote";
 
+const NOTES_COLLECTION = "notes";
+
+const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        title: data.title || "",
+        content: data.content || "",
+        isPublic: !!data.isPublic,
+        createdAt: data.createdAt || Timestamp.now(),
+        updatedAt: data.updatedAt || Timestamp.now(),
+        tags: data.tags || [],
+        ownerId: data.ownerId || "",
+    };
+};
+
 export const addNote = async (note: Omit<INote, "id">): Promise<string> => {
     try {
-        const docRef = await addDoc(collection(db, "notes"), note);
+        if (!note.title.trim() || note.title.trim().length < 5) {
+            throw new Error("Le titre de la note doit contenir au moins 5 caractères");
+        }
+        
+        if (!note.content.trim() || note.content.trim().length < 10) {
+            throw new Error("Le contenu de la note doit contenir au moins 10 caractères");
+        }
+        
+        if (!note.ownerId) {
+            throw new Error("L'ID du propriétaire est requis");
+        }
+
+        const docRef = await addDoc(collection(db, NOTES_COLLECTION), {
+            ...note,
+            createdAt: note.createdAt || Timestamp.now(),
+            updatedAt: note.updatedAt || Timestamp.now(),
+        });
         return docRef.id;
     } catch (error) {
         console.error("Error adding note:", error);
@@ -24,7 +60,7 @@ export const addNote = async (note: Omit<INote, "id">): Promise<string> => {
 
 export const getNote = async (noteId: string): Promise<INote | null> => {
     try {
-        const noteDoc = await getDoc(doc(db, "notes", noteId));
+        const noteDoc = await getDoc(doc(db, NOTES_COLLECTION, noteId));
         return noteDoc.exists()
             ? ({ id: noteDoc.id, ...noteDoc.data() } as INote)
             : null;
@@ -36,21 +72,14 @@ export const getNote = async (noteId: string): Promise<INote | null> => {
 
 export const getVisibleNotes = async (): Promise<INote[]> => {
     try {
-        const notesRef = collection(db, "notes");
-
-        const publicQuery = query(notesRef, where("isPublic", "==", true));
-
-        const [publicSnap] = await Promise.all([
-            getDocs(publicQuery),
-        ]);
-
-        const notesMap = new Map<string, INote>();
-
-        publicSnap.forEach((doc) =>
-            notesMap.set(doc.id, { id: doc.id, ...doc.data() } as INote)
+        const q = query(
+            collection(db, NOTES_COLLECTION),
+            where("isPublic", "==", true),
+            orderBy("updatedAt", "desc")
         );
 
-        return Array.from(notesMap.values());
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(convertDocToNote);
     } catch (error) {
         console.error("Error fetching visible notes:", error);
         throw error;
@@ -59,29 +88,30 @@ export const getVisibleNotes = async (): Promise<INote[]> => {
 
 export const getUserNotesAndPublicOnes = async (userId: string): Promise<INote[]> => {
     try {
-        const notesRef = collection(db, "notes");
-
-        const publicQuery = query(notesRef, where("isPublic", "==", true));
-        const ownQuery = query(notesRef, where("ownerId", "==", userId));
-
-        const [publicSnap, ownSnap] = await Promise.all([
-            getDocs(publicQuery),
-            getDocs(ownQuery),
-        ]);
-
-        const notesMap = new Map<string, INote>();
-
-        publicSnap.forEach((doc) =>
-            notesMap.set(doc.id, { id: doc.id, ...doc.data() } as INote)
+        const userNotesQuery = query(
+            collection(db, NOTES_COLLECTION),
+            where("ownerId", "==", userId),
+            orderBy("updatedAt", "desc")
         );
-        ownSnap.forEach((doc) =>
-            notesMap.set(doc.id, { id: doc.id, ...doc.data() } as INote)
+        
+        const userNotesSnapshot = await getDocs(userNotesQuery);
+        const userNotes = userNotesSnapshot.docs.map(convertDocToNote);
+        
+        const publicNotesQuery = query(
+            collection(db, NOTES_COLLECTION),
+            where("isPublic", "==", true),
+            where("ownerId", "!=", userId),
+            orderBy("ownerId"),
+            orderBy("updatedAt", "desc")
         );
-
-        return Array.from(notesMap.values());
+        
+        const publicNotesSnapshot = await getDocs(publicNotesQuery);
+        const publicNotes = publicNotesSnapshot.docs.map(convertDocToNote);
+        
+        return [...userNotes, ...publicNotes];
     } catch (error) {
-        console.error("Error fetching user notes and public ones:", error);
-        throw error;
+        console.error("Error fetching user and public notes:", error);
+        throw new Error("Failed to load notes");
     }
 };
 
@@ -90,7 +120,7 @@ export const updateNote = async (
     updates: Partial<INote>
 ): Promise<void> => {
     try {
-        await updateDoc(doc(db, "notes", noteId), updates);
+        await updateDoc(doc(db, NOTES_COLLECTION, noteId), updates);
     } catch (error) {
         console.error("Error updating note:", error);
         throw error;
@@ -99,7 +129,7 @@ export const updateNote = async (
 
 export const deleteNote = async (noteId: string): Promise<void> => {
     try {
-        await deleteDoc(doc(db, "notes", noteId));
+        await deleteDoc(doc(db, NOTES_COLLECTION, noteId));
     } catch (error) {
         console.error("Error deleting note:", error);
         throw error;

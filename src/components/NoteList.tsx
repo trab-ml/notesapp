@@ -3,11 +3,21 @@ import { INote } from "../types/INote";
 import {
     getVisibleNotes,
     getUserNotesAndPublicOnes,
+    addNote,
+    updateNote,
+    deleteNote,
 } from "../services/NoteService";
 import { useAuth } from "../hooks/useAuth";
+import { Timestamp } from "firebase/firestore";
+import { Modal } from "./ui/Modal";
+import { NoteForm } from "./NoteForm";
+import { NoteCard } from "./ui/NoteCard";
+import { LoadingSpinner } from "../components/ui/LoadingSpinner";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const NoteList: React.FC = () => {
     const [notes, setNotes] = useState<INote[]>([]);
+    const [showAddForm, setShowAddForm] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
 
@@ -20,20 +30,76 @@ const NoteList: React.FC = () => {
     const loadNotes = async () => {
         setLoading(true);
         try {
-            setNotes(
-                user
-                    ? await getUserNotesAndPublicOnes(user.uid)
-                    : await getVisibleNotes()
-            );
+            const loadedNotes = user
+                ? await getUserNotesAndPublicOnes(user.uid)
+                : await getVisibleNotes();
+            setNotes(loadedNotes);
         } catch (error) {
             console.error("Error loading notes:", error);
         } finally {
             setLoading(false);
         }
-    };    
+    };
+
+    const handleAddNote = async (values: {
+        title: string;
+        content: string;
+        tags: string[];
+        isPublic: boolean;
+    }) => {
+        if (!user) return;
+
+        const note: Omit<INote, "id"> = {
+            ...values,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+            ownerId: user.uid,
+        };
+
+        await addNote(note);
+        setShowAddForm(false);
+        await loadNotes();
+    };
+
+    const handleToggleIsPublic = async (e: React.MouseEvent, note: INote) => {
+        e.stopPropagation();
+        if (!note.id) return;
+
+        try {
+            await updateNote(note.id, {
+                isPublic: !note.isPublic,
+                updatedAt: Timestamp.now(),
+            });
+            setNotes(prev =>
+                prev.map(n =>
+                    n.id === note.id
+                        ? { ...n, isPublic: !n.isPublic, updatedAt: Timestamp.now() }
+                        : n
+                )
+            );
+        } catch (error) {
+            console.error("Error updating note visibility:", error);
+        }
+    };
+
+    const handleDeleteNote = async (e: React.MouseEvent, noteId: string) => {
+        e.stopPropagation();
+        if (confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
+            try {
+                await deleteNote(noteId);
+                setNotes(prev => prev.filter(n => n.id !== noteId));
+            } catch (error) {
+                console.error("Error deleting note:", error);
+            }
+        }
+    };
 
     const toggleExpandNote = (noteId: string) => {
         setExpandedNote(expandedNote === noteId ? null : noteId);
+    };
+
+    const handleAnonymousUser = () => {
+        alert("Veuillez vous connecter pour ajouter une note.");
     };
 
     return (
@@ -41,6 +107,7 @@ const NoteList: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Notes</h2>
                 <button
+                    onClick={() => user ? setShowAddForm(true) : handleAnonymousUser()}
                     className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1 rounded-md flex items-center"
                 >
                     <svg
@@ -63,101 +130,38 @@ const NoteList: React.FC = () => {
                 </button>
             </div>
 
+            <Modal 
+                isOpen={showAddForm} 
+                onClose={() => setShowAddForm(false)} 
+                title="Nouvelle Note"
+            >
+                <NoteForm 
+                    onSubmit={handleAddNote}
+                    onCancel={() => setShowAddForm(false)}
+                />
+            </Modal>
+
             {loading ? (
-                <div className="flex justify-center items-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
-                </div>
+                <LoadingSpinner />
+            ) : notes.length === 0 ? (
+                <EmptyState 
+                    message="Aucune note disponible."
+                    actionText="Créer votre première note"
+                    onAction={() => user ? setShowAddForm(true) : handleAnonymousUser()}
+                />
             ) : (
-                <div className="mt-2">
-                    {notes.length === 0 ? (
-                        <div className="bg-gray-50 rounded-lg p-6 text-center">
-                            <p className="text-gray-500">
-                                Aucune note disponible.
-                            </p>
-                            <button
-                                className="mt-2 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                            >
-                                Créer votre première note
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {notes.map((note) => (
-                                <div
-                                    key={note.id}
-                                    onClick={() => toggleExpandNote(note.id!)}
-                                    className={`border rounded-md shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer ${
-                                        expandedNote === note.id
-                                            ? "bg-gray-50"
-                                            : "bg-white"
-                                    }`}
-                                >
-                                    <div className="p-3">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="font-medium text-base truncate">
-                                                {note.title}
-                                            </h4>
-                                            <span
-                                                className={`text-xs px-2 py-0.5 rounded-full ${
-                                                    note.isPublic
-                                                        ? "bg-green-100 text-green-800"
-                                                        : "bg-yellow-100 text-yellow-800"
-                                                }`}
-                                            >
-                                                {note.isPublic
-                                                    ? "Publique"
-                                                    : "Privée"}
-                                            </span>
-                                        </div>
-                                        <p
-                                            className={`text-sm text-gray-600 ${
-                                                expandedNote === note.id
-                                                    ? ""
-                                                    : "line-clamp-2"
-                                            }`}
-                                        >
-                                            {note.content}
-                                        </p>
-                                        {(expandedNote === note.id ||
-                                            !note.content) &&
-                                            note.tags &&
-                                            note.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 mt-2">
-                                                    {note.tags.map((tag) => (
-                                                        <span
-                                                            key={tag}
-                                                            className="bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded"
-                                                        >
-                                                            {tag}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-                                            <span>{note.updatedAt.toDate().toDateString()}</span>
-                                            {user &&
-                                                note.ownerId === user.uid && (
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            className="text-blue-500 hover:underline"
-                                                        >
-                                                            {note.isPublic
-                                                                ? "Privée"
-                                                                : "Publique"}
-                                                        </button>
-                                                        <button
-                                                            className="text-red-500 hover:underline"
-                                                        >
-                                                            Supprimer
-                                                        </button>
-                                                    </div>
-                                                )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {notes.map(note => (
+                        <NoteCard
+                            key={note.id}
+                            note={note}
+                            isExpanded={expandedNote === note.id}
+                            onToggleExpand={toggleExpandNote}
+                            onToggleVisibility={user?.uid === note.ownerId ? handleToggleIsPublic : undefined}
+                            onDelete={user?.uid === note.ownerId ? handleDeleteNote : undefined}
+                            isOwner={user?.uid === note.ownerId}
+                        />
+                    ))}
                 </div>
             )}
         </div>

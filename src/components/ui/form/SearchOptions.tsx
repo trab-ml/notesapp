@@ -56,9 +56,11 @@ const SearchOptions: React.FC<TSearchOptions> = ({
                     className="w-2/6 h-10 border-2 border-indigo-600 focus:outline-none focus:border-indigo-600 text-indigo-600 rounded px-2 md:px-3 py-0 md:py-1 tracking-wider"
                 >
                     <option value="all">Filtrer</option>
+                    <option value="favorites">Favoris</option>
                     <option value="tag">Tag</option>
                     <option value="mine">À moi</option>
                     <option value="not-mine">Non à moi</option>
+                    <option value="shared">Partagées avec moi</option>
                 </select>
             </div>
         </form>

@@ -6,6 +6,9 @@ import {
     addNote,
     updateNote,
     deleteNote,
+    toggleFavorite,
+    getSharedNotes,
+    findUidByEmail,
 } from "../services/NoteService";
 import { useAuth } from "../hooks/useAuth";
 import { Timestamp } from "firebase/firestore";
@@ -16,7 +19,11 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { EmptyState } from "../components/ui/EmptyState";
 import { TNoteListSearchOptions } from "../types/SearchOptions";
 
-const NoteList: React.FC<TNoteListSearchOptions> = ({ query, sortBy, filterBy }) => {
+const NoteList: React.FC<TNoteListSearchOptions> = ({
+    query,
+    sortBy,
+    filterBy,
+}) => {
     const [notes, setNotes] = useState<INote[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -55,16 +62,28 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({ query, sortBy, filterBy })
             filteredNotes = filteredNotes.filter(
                 (note) => note.tags && note.tags.length > 0
             );
+        } else if (filterBy === "favorites") {
+            filteredNotes = filteredNotes.filter((note) => note.isFavorite);
+        } else if (filterBy === "shared") {
+            filteredNotes = filteredNotes.filter(
+                (note) =>
+                    note.sharedWith?.includes(user?.uid || "") &&
+                    note.ownerId !== user?.uid
+            );
         }
 
         // sorting
         if (sortBy === "new-to-old") {
             filteredNotes.sort(
-                (a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()
+                (a, b) =>
+                    b.createdAt.toDate().getTime() -
+                    a.createdAt.toDate().getTime()
             );
         } else if (sortBy === "old-to-new") {
             filteredNotes.sort(
-                (a, b) => a.createdAt.toDate().getTime() - b.createdAt.toDate().getTime()
+                (a, b) =>
+                    a.createdAt.toDate().getTime() -
+                    b.createdAt.toDate().getTime()
             );
         }
 
@@ -74,10 +93,11 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({ query, sortBy, filterBy })
     const loadNotes = async () => {
         setLoading(true);
         try {
-            const loadedNotes = user
+            const owned = user
                 ? await getUserNotesAndPublicOnes(user.uid)
                 : await getVisibleNotes();
-            setNotes(loadedNotes);
+            const shared = user ? await getSharedNotes(user.uid) : [];
+            setNotes([...owned, ...shared]);
         } catch (error) {
             console.error("Error loading notes:", error);
         } finally {
@@ -168,6 +188,47 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({ query, sortBy, filterBy })
 
     const handleAnonymousUser = () => {
         alert("Veuillez vous connecter pour ajouter une note.");
+    };
+
+    const handleToggleFavorite = async (e: React.MouseEvent, note: INote) => {
+        e.stopPropagation();
+        if (!note.id) return;
+
+        try {
+            await toggleFavorite(note.id, !note.isFavorite);
+            setNotes((prev) =>
+                prev.map((n) =>
+                    n.id === note.id ? { ...n, isFavorite: !n.isFavorite } : n
+                )
+            );
+        } catch (error) {
+            console.error("Erreur lors du changement de favori :", error);
+        }
+    };
+
+    const handleShare = async (note: INote, email: string) => {
+        try {
+            const sharedUserUid = await findUidByEmail(email);
+    
+            if (!sharedUserUid) {
+                alert("Utilisateur non trouvé.");
+                return;
+            }
+    
+            if (!note.id) return;
+    
+            const updatedSharedWith = Array.from(new Set([...(note.sharedWith ?? []), sharedUserUid]));
+    
+            await updateNote(note.id, {
+                sharedWith: updatedSharedWith,
+                updatedAt: Timestamp.now(),
+            });
+    
+            alert("Note partagée !");
+            await loadNotes();
+        } catch (error) {
+            console.error("Erreur de partage :", error);
+        }
     };
 
     return (
@@ -262,6 +323,16 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({ query, sortBy, filterBy })
                                     : undefined
                             }
                             isOwner={user?.uid === note.ownerId}
+                            onToggleFavorite={
+                                user?.uid === note.ownerId
+                                    ? handleToggleFavorite
+                                    : undefined
+                            }
+                            onShare={
+                                user?.uid === note.ownerId
+                                    ? handleShare
+                                    : undefined
+                            }
                         />
                     ))}
                 </div>

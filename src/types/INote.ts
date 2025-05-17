@@ -9,4 +9,6 @@ export interface INote {
     updatedAt: Timestamp;
     tags: string[];
     ownerId: string;
+    isFavorite?: boolean;
+    sharedWith?: string[]; // list of user IDs
 }

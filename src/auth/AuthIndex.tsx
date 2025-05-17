@@ -14,6 +14,7 @@ import {
     signInWithEmailAndPassword,
     updateProfile,
 } from "firebase/auth";
+import { saveUserProfile } from "../services/NoteService";
 
 /**
  * Reusable component for authentification
@@ -58,12 +59,10 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             const user = credential.user;
 
             if (user) {
-                console.log("User have an account");
-
                 if (user.emailVerified) {
                     window.location.pathname = "/home";
                 } else {
-                    alert("To login to your account, first verify your email!");
+                    alert("Pour vous connecter, veuillez dabord valider votre email!");
                     setIsFormValid(true);
                 }
             }
@@ -78,9 +77,6 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             }
 
             alert(errorMessage);
-
-            console.error("Error logging in:", error);
-
             setIsFormValid(true);
         }
     };
@@ -97,15 +93,14 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             await updateProfile(userCredential.user, {
                 displayName: firstnameValue + " " + lastnameValue,
             });
+            saveUserProfile({uid: userCredential.user.uid, email: userCredential.user.email || ""});
 
             auth.onAuthStateChanged(function (user) {
                 if (user) {
                     sendEmailVerification(user).then(() => {
-                        alert("Email verification sent!");
+                        alert("Email de vérification envoyé!");
                         window.location.pathname = "/";
                     });
-                } else {
-                    console.log("No user signed in!");
                 }
             });
         } catch (error) {
@@ -113,9 +108,9 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             let errorMessage;
 
             if (errorCode == "auth/weak-password") {
-                errorMessage = "The password is too weak.";
+                errorMessage = "Mot de passe trop faible.";
             } else if (errorCode == "auth/email-already-in-use") {
-                errorMessage = "This email is already used.";
+                errorMessage = "Adresse email déjà utilisée.";
             } else {
                 errorMessage = "Service momentanément indisponible.";
             }

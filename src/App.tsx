@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Root from "./components/ui/pages/Root";
 import ForgotPassword from './auth/ForgotPassword'
 import Home from "./components/ui/pages/Home";
-import Favorites from "./components/ui/pages/Favorites";
 import NotesSharedWithMe from "./components/ui/pages/NotesSharedWithMe";
 import NoMatch from "./components/ui/pages/NoMatch";
 
@@ -20,7 +19,6 @@ export default function App() {
                 <Route path="/home" element={<Home />} />
 
                 {/* Menu */}
-                <Route path="/favorites" element={<Favorites />} />
                 <Route path="/notes-shared-with-me" element={<NotesSharedWithMe />} />
 
                 <Route path="*" element={<NoMatch />} />

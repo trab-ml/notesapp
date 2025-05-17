@@ -3,6 +3,7 @@ import {
     collection,
     addDoc,
     getDoc,
+    setDoc,
     getDocs,
     updateDoc,
     deleteDoc,
@@ -29,7 +30,29 @@ const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
         updatedAt: data.updatedAt || Timestamp.now(),
         tags: data.tags || [],
         ownerId: data.ownerId || "",
+        isFavorite: !!data.isFavorite,
     };
+};
+
+export const saveUserProfile = async (user: { uid: string, email: string }) => {
+    const userRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(userRef);
+
+    if (!docSnap.exists()) {
+        await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+        });
+    }
+};
+
+export const findUidByEmail = async (email: string): Promise<string | null> => {
+    const q = query(collection(db, "users"), where("email", "==", email));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+
+    return snapshot.docs[0].data().uid;
 };
 
 export const addNote = async (note: Omit<INote, "id">): Promise<string> => {
@@ -50,6 +73,7 @@ export const addNote = async (note: Omit<INote, "id">): Promise<string> => {
             ...note,
             createdAt: note.createdAt || Timestamp.now(),
             updatedAt: note.updatedAt || Timestamp.now(),
+            isFavorite: false,
         });
         return docRef.id;
     } catch (error) {
@@ -134,4 +158,23 @@ export const deleteNote = async (noteId: string): Promise<void> => {
         console.error("Error deleting note:", error);
         throw error;
     }
+};
+
+export const toggleFavorite = async (noteId: string, isFavorite: boolean) => {
+    const noteRef = doc(db, NOTES_COLLECTION, noteId);
+    await updateDoc(noteRef, {
+        isFavorite,
+        updatedAt: Timestamp.now(),
+    });
+};
+
+export const getSharedNotes = async (uid: string): Promise<INote[]> => {
+    const notesRef = collection(db, NOTES_COLLECTION);
+    const q = query(notesRef, where("sharedWith", "array-contains", uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+    })) as INote[];
 };

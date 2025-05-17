@@ -2,6 +2,8 @@ import React from "react";
 import { INote } from "../../types/INote";
 import { formatDate } from "../../utils/dateUtils";
 import { truncateText } from "../../utils/textUtils";
+import empty_start from "../../assets/icons/empty-star-24px.png";
+import full_start from "../../assets/icons/full-star-24px.png";
 
 interface NoteCardProps {
     note: INote;
@@ -11,6 +13,8 @@ interface NoteCardProps {
     onEdit?: () => void;
     onDelete?: (e: React.MouseEvent, noteId: string) => void;
     isOwner: boolean;
+    onToggleFavorite?: (e: React.MouseEvent, note: INote) => void;
+    onShare?: (note: INote, email: string) => void;
 }
 
 export const NoteCard: React.FC<NoteCardProps> = ({
@@ -21,6 +25,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     onEdit,
     onDelete,
     isOwner,
+    onToggleFavorite,
+    onShare,
 }) => {
     return (
         <div
@@ -100,6 +106,38 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                             )}
                         </div>
                     )}
+
+                    <button
+                        onClick={(e) => onToggleFavorite?.(e, note)}
+                        title="Favori"
+                        className="text-yellow-500 hover:text-yellow-600 ml-auto"
+                    >
+                        {note.isFavorite ? (
+                            <img
+                                src={full_start}
+                                alt="favori"
+                                className="w-6 h-6"
+                            />
+                        ) : (
+                            <img
+                                src={empty_start}
+                                alt="non favori"
+                                className="w-6 h-6"
+                            />
+                        )}
+                    </button>
+
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const email = prompt(
+                                "Partager avec l’email de l’utilisateur :"
+                            );
+                            if (email) onShare?.(note, email);
+                        }}
+                        className="text-indigo-500 hover:text-indigo-600 ml-2"
+                        title="Partager"
+                    />
                 </div>
             </div>
         </div>

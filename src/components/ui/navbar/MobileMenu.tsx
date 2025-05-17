@@ -32,7 +32,6 @@ export function MobileMenu() {
             {/* Mobile Dropdown */}
             <ul id="services-dropdown" className="-bg-gray-50 hidden pl-4">
               <li><NavLink to="/home" className="block py-2 hover:text-primary">Les notes</NavLink></li>
-              <li><NavLink to="/favorites" className="block py-2 hover:text-primary">Mes favoris</NavLink></li>
               <li><NavLink to="/notes-shared-with-me" className="block py-2 hover:text-primary">Partagées avec moi</NavLink></li>
             </ul>
         </li>

@@ -8,6 +8,7 @@ interface NoteCardProps {
     isExpanded: boolean;
     onToggleExpand: (noteId: string) => void;
     onToggleVisibility?: (e: React.MouseEvent, note: INote) => void;
+    onEdit?: () => void;
     onDelete?: (e: React.MouseEvent, noteId: string) => void;
     isOwner: boolean;
 }
@@ -17,6 +18,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     isExpanded,
     onToggleExpand,
     onToggleVisibility,
+    onEdit,
     onDelete,
     isOwner,
 }) => {
@@ -72,15 +74,26 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                             {onToggleVisibility && (
                                 <button
                                     onClick={(e) => onToggleVisibility(e, note)}
-                                    className="text-blue-500 hover:underline"
+                                    className="text-blue-600 hover:underline"
                                 >
                                     {note.isPublic ? "Privée" : "Publique"}
+                                </button>
+                            )}
+                            {onEdit && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEdit();
+                                    }}
+                                    className="text-orange-600 hover:underline"
+                                >
+                                    Éditer
                                 </button>
                             )}
                             {onDelete && (
                                 <button
                                     onClick={(e) => onDelete(e, note.id!)}
-                                    className="text-red-500 hover:underline"
+                                    className="text-red-600 hover:underline"
                                 >
                                     Supprimer
                                 </button>

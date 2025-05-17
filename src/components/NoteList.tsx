@@ -20,6 +20,7 @@ const NoteList: React.FC = () => {
     const [showAddForm, setShowAddForm] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
+    const [noteToEdit, setNoteToEdit] = useState<INote | null>(null);
 
     const { user } = useAuth();
 
@@ -61,6 +62,26 @@ const NoteList: React.FC = () => {
         await loadNotes();
     };
 
+    const handleEditNote = async (values: {
+        title: string;
+        content: string;
+        tags: string[];
+        isPublic: boolean;
+    }) => {
+        if (!noteToEdit || !noteToEdit.id) return;
+    
+        try {
+            await updateNote(noteToEdit.id, {
+                ...values,
+                updatedAt: Timestamp.now(),
+            });
+            setNoteToEdit(null);
+            await loadNotes();
+        } catch (error) {
+            console.error("Erreur lors de la mise à jour :", error);
+        }
+    };
+    
     const handleToggleIsPublic = async (e: React.MouseEvent, note: INote) => {
         e.stopPropagation();
         if (!note.id) return;
@@ -141,6 +162,24 @@ const NoteList: React.FC = () => {
                 />
             </Modal>
 
+            <Modal 
+                isOpen={!!noteToEdit}
+                onClose={() => setNoteToEdit(null)}
+                title="Modifier la note"
+            >
+                <NoteForm
+                    initialValues={{
+                        title: noteToEdit?.title ?? '',
+                        content: noteToEdit?.content ?? '',
+                        tags: noteToEdit?.tags?.join(', ') ?? '',
+                        isPublic: noteToEdit?.isPublic ?? false,
+                    }}
+                    onSubmit={handleEditNote}
+                    onCancel={() => setNoteToEdit(null)}
+                />
+            </Modal>
+
+
             {loading ? (
                 <LoadingSpinner />
             ) : notes.length === 0 ? (
@@ -158,6 +197,7 @@ const NoteList: React.FC = () => {
                             isExpanded={expandedNote === note.id}
                             onToggleExpand={toggleExpandNote}
                             onToggleVisibility={user?.uid === note.ownerId ? handleToggleIsPublic : undefined}
+                            onEdit={user?.uid === note.ownerId ? () => setNoteToEdit(note) : undefined}
                             onDelete={user?.uid === note.ownerId ? handleDeleteNote : undefined}
                             isOwner={user?.uid === note.ownerId}
                         />

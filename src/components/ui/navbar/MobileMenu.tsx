@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
+import Logout from "../../../auth/Logout";
 
 function toggleMobileServicesDropdown() {
   const mobileMenu = document.getElementById('mobile-menu');
@@ -36,7 +37,7 @@ export function MobileMenu() {
             </ul>
         </li>
 
-        {/* <li><NavLink to="/profile" className="block py-2 hover:text-primary">Profil</NavLink></li> */}
+        <li><Logout /></li>
       </ul>
     </nav>);
 }

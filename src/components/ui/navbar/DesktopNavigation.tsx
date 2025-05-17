@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
+import Logout from "../../../auth/Logout";
 
 /**
  * Desktop Navigation (Hidden on smaller screens)
@@ -12,7 +13,7 @@ export function DesktopNavigation() {
         <li><NavLink to="/home" className="hover:text-primary transition-colors duration-300">Les notes</NavLink></li>
         <li><NavLink to="/favorites" className="hover:text-primary transition-colors duration-300">Mes favoris</NavLink></li>
         <li><NavLink to="/notes-shared-with-me" className="hover:text-primary transition-colors duration-300">Partagées avec moi</NavLink></li>
-        {/* <li><NavLink to="/profile" className="hover:text-primary transition-colors duration-300">Profil</NavLink></li> */}
+        <li><Logout /></li>
       </ul>
     </nav>);
 }

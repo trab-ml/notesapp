@@ -14,19 +14,62 @@ import { NoteForm } from "./NoteForm";
 import { NoteCard } from "./ui/NoteCard";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { EmptyState } from "../components/ui/EmptyState";
+import { TNoteListSearchOptions } from "../types/SearchOptions";
 
-const NoteList: React.FC = () => {
+const NoteList: React.FC<TNoteListSearchOptions> = ({ query, sortBy, filterBy }) => {
     const [notes, setNotes] = useState<INote[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [loading, setLoading] = useState(true);
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
     const [noteToEdit, setNoteToEdit] = useState<INote | null>(null);
+    const [displayedNotes, setDisplayedNotes] = useState<INote[]>([]);
 
     const { user } = useAuth();
 
     useEffect(() => {
         loadNotes();
     }, [user]);
+
+    useEffect(() => {
+        let filteredNotes = [...notes];
+
+        // searching
+        if (query) {
+            filteredNotes = filteredNotes.filter(
+                (note) =>
+                    note.title.toLowerCase().includes(query.toLowerCase()) ||
+                    note.content.toLowerCase().includes(query.toLowerCase())
+            );
+        }
+
+        // filtering
+        if (filterBy === "mine") {
+            filteredNotes = filteredNotes.filter(
+                (note) => note.ownerId === user?.uid
+            );
+        } else if (filterBy === "not-mine") {
+            filteredNotes = filteredNotes.filter(
+                (note) => note.ownerId !== user?.uid
+            );
+        } else if (filterBy === "tag") {
+            filteredNotes = filteredNotes.filter(
+                (note) => note.tags && note.tags.length > 0
+            );
+        }
+
+        // sorting
+        if (sortBy === "new-to-old") {
+            filteredNotes.sort(
+                (a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()
+            );
+        } else if (sortBy === "old-to-new") {
+            filteredNotes.sort(
+                (a, b) => a.createdAt.toDate().getTime() - b.createdAt.toDate().getTime()
+            );
+        }
+
+        setDisplayedNotes(filteredNotes);
+    }, [query, filterBy, sortBy, notes, user?.uid]);
 
     const loadNotes = async () => {
         setLoading(true);
@@ -69,7 +112,7 @@ const NoteList: React.FC = () => {
         isPublic: boolean;
     }) => {
         if (!noteToEdit || !noteToEdit.id) return;
-    
+
         try {
             await updateNote(noteToEdit.id, {
                 ...values,
@@ -81,7 +124,7 @@ const NoteList: React.FC = () => {
             console.error("Erreur lors de la mise à jour :", error);
         }
     };
-    
+
     const handleToggleIsPublic = async (e: React.MouseEvent, note: INote) => {
         e.stopPropagation();
         if (!note.id) return;
@@ -91,10 +134,14 @@ const NoteList: React.FC = () => {
                 isPublic: !note.isPublic,
                 updatedAt: Timestamp.now(),
             });
-            setNotes(prev =>
-                prev.map(n =>
+            setNotes((prev) =>
+                prev.map((n) =>
                     n.id === note.id
-                        ? { ...n, isPublic: !n.isPublic, updatedAt: Timestamp.now() }
+                        ? {
+                              ...n,
+                              isPublic: !n.isPublic,
+                              updatedAt: Timestamp.now(),
+                          }
                         : n
                 )
             );
@@ -108,7 +155,7 @@ const NoteList: React.FC = () => {
         if (confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
             try {
                 await deleteNote(noteId);
-                setNotes(prev => prev.filter(n => n.id !== noteId));
+                setNotes((prev) => prev.filter((n) => n.id !== noteId));
             } catch (error) {
                 console.error("Error deleting note:", error);
             }
@@ -128,7 +175,9 @@ const NoteList: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Notes</h2>
                 <button
-                    onClick={() => user ? setShowAddForm(true) : handleAnonymousUser()}
+                    onClick={() =>
+                        user ? setShowAddForm(true) : handleAnonymousUser()
+                    }
                     className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1 rounded-md flex items-center"
                 >
                     <svg
@@ -151,27 +200,27 @@ const NoteList: React.FC = () => {
                 </button>
             </div>
 
-            <Modal 
-                isOpen={showAddForm} 
-                onClose={() => setShowAddForm(false)} 
+            <Modal
+                isOpen={showAddForm}
+                onClose={() => setShowAddForm(false)}
                 title="Nouvelle Note"
             >
-                <NoteForm 
+                <NoteForm
                     onSubmit={handleAddNote}
                     onCancel={() => setShowAddForm(false)}
                 />
             </Modal>
 
-            <Modal 
+            <Modal
                 isOpen={!!noteToEdit}
                 onClose={() => setNoteToEdit(null)}
                 title="Modifier la note"
             >
                 <NoteForm
                     initialValues={{
-                        title: noteToEdit?.title ?? '',
-                        content: noteToEdit?.content ?? '',
-                        tags: noteToEdit?.tags?.join(', ') ?? '',
+                        title: noteToEdit?.title ?? "",
+                        content: noteToEdit?.content ?? "",
+                        tags: noteToEdit?.tags?.join(", ") ?? "",
                         isPublic: noteToEdit?.isPublic ?? false,
                     }}
                     onSubmit={handleEditNote}
@@ -179,26 +228,39 @@ const NoteList: React.FC = () => {
                 />
             </Modal>
 
-
             {loading ? (
                 <LoadingSpinner />
-            ) : notes.length === 0 ? (
-                <EmptyState 
+            ) : displayedNotes.length === 0 ? (
+                <EmptyState
                     message="Aucune note disponible."
                     actionText="Créer votre première note"
-                    onAction={() => user ? setShowAddForm(true) : handleAnonymousUser()}
+                    onAction={() =>
+                        user ? setShowAddForm(true) : handleAnonymousUser()
+                    }
                 />
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {notes.map(note => (
+                    {displayedNotes.map((note) => (
                         <NoteCard
                             key={note.id}
                             note={note}
                             isExpanded={expandedNote === note.id}
                             onToggleExpand={toggleExpandNote}
-                            onToggleVisibility={user?.uid === note.ownerId ? handleToggleIsPublic : undefined}
-                            onEdit={user?.uid === note.ownerId ? () => setNoteToEdit(note) : undefined}
-                            onDelete={user?.uid === note.ownerId ? handleDeleteNote : undefined}
+                            onToggleVisibility={
+                                user?.uid === note.ownerId
+                                    ? handleToggleIsPublic
+                                    : undefined
+                            }
+                            onEdit={
+                                user?.uid === note.ownerId
+                                    ? () => setNoteToEdit(note)
+                                    : undefined
+                            }
+                            onDelete={
+                                user?.uid === note.ownerId
+                                    ? handleDeleteNote
+                                    : undefined
+                            }
                             isOwner={user?.uid === note.ownerId}
                         />
                     ))}

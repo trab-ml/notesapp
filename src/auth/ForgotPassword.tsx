@@ -1,5 +1,5 @@
 import React from 'react';
-import { EmailField, SubmitButton } from '../components/ui/form/Field';
+// import { EmailField, SubmitButton } from '../components/atoms/Field';
 
 const ForgotPassword: React.FC = () => {
   return (
@@ -12,8 +12,8 @@ const ForgotPassword: React.FC = () => {
       <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 max-w-md w-full">
         <h2 className="text-center text-2xl font-bold mb-6">Mot de passe oublié</h2>
         <form className="py-4 text-base leading-6 space-y-4 text-gray-700 sm:text-lg sm:leading-7">
-          <EmailField />
-          <SubmitButton buttonText={'Changer le mot de passe'} />
+          {/* <EmailField />
+          <SubmitButton buttonText={'Changer le mot de passe'} /> */}
           {/* <p>Un email vous a été envoyé pour rénitialiser votre mot de passe.</p> */}
         </form>
       </div>

@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import Logout from "../../../auth/Logout";
+import Logout from "../../auth/Logout";
 
 /**
  * Desktop Navigation (Hidden on smaller screens)

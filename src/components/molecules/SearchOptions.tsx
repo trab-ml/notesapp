@@ -1,5 +1,5 @@
 import React from "react";
-import { TSearchOptions } from "../../../types/SearchOptions";
+import { TSearchOptions } from "../../types/SearchOptions";
 
 const SearchOptions: React.FC<TSearchOptions> = ({
     query,

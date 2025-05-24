@@ -5,7 +5,7 @@ import {
     EmailField,
     PasswordField,
     SubmitButton,
-} from "../components/ui/form/Field";
+} from "../components/atoms/Field";
 import { ILogin, IName } from "../types/Form";
 import { auth } from "../firebase/firebase";
 import {

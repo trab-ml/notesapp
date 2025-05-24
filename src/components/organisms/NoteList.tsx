@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { INote } from "../types/INote";
+import { INote } from "../../types/INote";
 import {
     getVisibleNotes,
     getUserNotesAndPublicOnes,
@@ -8,15 +8,15 @@ import {
     deleteNote,
     toggleFavorite,
     shareNoteWithUser,
-} from "../services/NoteService";
-import { useAuth } from "../hooks/useAuth";
+} from "../../services/NoteService";
+import { useAuth } from "../../hooks/useAuth";
 import { Timestamp } from "firebase/firestore";
-import { Modal } from "./ui/Modal";
-import { NoteForm } from "./NoteForm";
-import { NoteCard } from "./ui/NoteCard";
-import { LoadingSpinner } from "../components/ui/LoadingSpinner";
-import { EmptyState } from "../components/ui/EmptyState";
-import { TNoteListSearchOptions } from "../types/SearchOptions";
+import { Modal } from "../molecules/Modal";
+import { NoteForm } from "../molecules/NoteForm";
+import { NoteCard } from "../molecules/NoteCard";
+import { LoadingSpinner } from "../atoms/LoadingSpinner";
+import { EmptyState } from "../atoms/EmptyState";
+import { TNoteListSearchOptions } from "../../types/SearchOptions";
 
 const NoteList: React.FC<TNoteListSearchOptions> = ({
     query,
@@ -335,7 +335,8 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                                 user?.uid === note.ownerId
                                     ? handleShare
                                     : undefined
-                            }
+                           
+                                }
                         />
                     ))}
                 </div>

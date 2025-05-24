@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import Logout from "../../../auth/Logout";
+import Logout from "../../auth/Logout";
 
 function toggleMobileServicesDropdown() {
   const mobileMenu = document.getElementById('mobile-menu');

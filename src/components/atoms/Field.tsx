@@ -1,5 +1,5 @@
 import React from "react";
-import { IName, IOnChange, ISubmitButton } from "../../../types/Form";
+import { IName, IOnChange, ISubmitButton } from "../../types/Form";
 
 const validateField = (fieldRegex, value, setState, setValid) => {
     setState(value);

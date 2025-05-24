@@ -1,7 +1,7 @@
-import { MobileMenuTriggerButton } from "./MobileMenuTriggerButton";
-import { Logo } from "./Logo";
-import { MobileMenu } from "./MobileMenu";
-import { DesktopNavigation } from "./DesktopNavigation";
+import { MobileMenuTriggerButton } from "../atoms/MobileMenuTriggerButton";
+import { Logo } from "../atoms/Logo";
+import { MobileMenu } from "../molecules/MobileMenu";
+import { DesktopNavigation } from "../molecules/DesktopNavigation";
 import React from "react";
 
 const NavBar = () => {

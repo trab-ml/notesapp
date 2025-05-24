@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import NavBar from "../navbar/NavBar";
-import SearchOptions from "../form/SearchOptions";
-import NoteList from "../../NoteList";
-import Footer from "../Footer";
+import NavBar from "../organisms/NavBar";
+import SearchOptions from "../molecules/SearchOptions";
+import NoteList from "../organisms/NoteList";
+import Footer from "../atoms/Footer";
 
 const Home: React.FC = () => {
     const [query, setQuery] = useState("");

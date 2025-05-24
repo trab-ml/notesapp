@@ -16,8 +16,10 @@ import {
     QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { INote } from "../types/INote";
+import { uid } from 'uid/secure';
 
 const NOTES_COLLECTION = "notes";
+const USERS_COLLECTION = "users";
 
 const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
     const data = doc.data();
@@ -31,11 +33,12 @@ const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
         tags: data.tags || [],
         ownerId: data.ownerId || "",
         isFavorite: !!data.isFavorite,
+        sharedWith: data.sharedWith || [],
     };
 };
 
 export const saveUserProfile = async (user: { uid: string, email: string }) => {
-    const userRef = doc(db, "users", user.uid);
+    const userRef = doc(db, USERS_COLLECTION, user.uid);
     const docSnap = await getDoc(userRef);
 
     if (!docSnap.exists()) {
@@ -47,7 +50,7 @@ export const saveUserProfile = async (user: { uid: string, email: string }) => {
 };
 
 export const findUidByEmail = async (email: string): Promise<string | null> => {
-    const q = query(collection(db, "users"), where("email", "==", email));
+    const q = query(collection(db, USERS_COLLECTION), where("email", "==", email));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) return null;
@@ -55,7 +58,7 @@ export const findUidByEmail = async (email: string): Promise<string | null> => {
     return snapshot.docs[0].data().uid;
 };
 
-export const addNote = async (note: Omit<INote, "id">): Promise<string> => {
+export const addNote = async (note: Omit<INote, "id" | "createdAt" | "updatedAt" | "sharedWith">): Promise<string> => {
     try {
         if (!note.title.trim() || note.title.trim().length < 5) {
             throw new Error("Le titre de la note doit contenir au moins 5 caractères");
@@ -71,9 +74,11 @@ export const addNote = async (note: Omit<INote, "id">): Promise<string> => {
 
         const docRef = await addDoc(collection(db, NOTES_COLLECTION), {
             ...note,
-            createdAt: note.createdAt || Timestamp.now(),
-            updatedAt: note.updatedAt || Timestamp.now(),
+            id: uid(),
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
             isFavorite: false,
+            sharedWith: [],
         });
         return docRef.id;
     } catch (error) {
@@ -110,6 +115,11 @@ export const getVisibleNotes = async (): Promise<INote[]> => {
     }
 };
 
+/**
+ * Fetches notes for a specific user, including their own notes, public notes, and shared notes.
+ * @param userId - The ID of the user whose notes are to be fetched.
+ * @returns A promise that resolves to an array of notes.
+ */
 export const getUserNotesAndPublicOnes = async (userId: string): Promise<INote[]> => {
     try {
         const userNotesQuery = query(
@@ -132,7 +142,22 @@ export const getUserNotesAndPublicOnes = async (userId: string): Promise<INote[]
         const publicNotesSnapshot = await getDocs(publicNotesQuery);
         const publicNotes = publicNotesSnapshot.docs.map(convertDocToNote);
         
-        return [...userNotes, ...publicNotes];
+        const sharedNotesQuery = query(
+            collection(db, NOTES_COLLECTION),
+            where("sharedWith", "array-contains", userId)
+        );
+        
+        const sharedNotesSnapshot = await getDocs(sharedNotesQuery);
+        const sharedNotes = sharedNotesSnapshot.docs.map(convertDocToNote);
+        
+        const allNotes = [...userNotes, ...publicNotes, ...sharedNotes];
+        const uniqueNotes = allNotes.filter((note, index, self) => 
+            index === self.findIndex(n => n.id === note.id)
+        );
+
+        return uniqueNotes.sort((a, b) => 
+            b.updatedAt.toDate().getTime() - a.updatedAt.toDate().getTime()
+        );
     } catch (error) {
         console.error("Error fetching user and public notes:", error);
         throw new Error("Failed to load notes");
@@ -168,13 +193,64 @@ export const toggleFavorite = async (noteId: string, isFavorite: boolean) => {
     });
 };
 
-export const getSharedNotes = async (uid: string): Promise<INote[]> => {
-    const notesRef = collection(db, NOTES_COLLECTION);
-    const q = query(notesRef, where("sharedWith", "array-contains", uid));
-    const snapshot = await getDocs(q);
+export const shareNoteWithUser = async (noteId: string, userEmail: string, currentUserId: string): Promise<void> => {
+    try {
+        const sharedUserUid = await findUidByEmail(userEmail);
+        
+        if (!sharedUserUid) {
+            throw new Error("Utilisateur non trouvé");
+        }
+        
+        if (sharedUserUid === currentUserId) {
+            throw new Error("Vous ne pouvez pas partager une note avec vous-même");
+        }
+        
+        const note = await getNote(noteId);
+        if (!note) {
+            throw new Error("Note non trouvée");
+        }
+        
+        if (note.ownerId !== currentUserId) {
+            throw new Error("Seul le propriétaire peut partager cette note");
+        }
+        
+        if (note.sharedWith?.includes(sharedUserUid)) {
+            throw new Error("La note est déjà partagée avec cet utilisateur");
+        }
+        
+        const updatedSharedWith = [...(note.sharedWith || []), sharedUserUid];
+        
+        await updateNote(noteId, {
+            sharedWith: updatedSharedWith,
+            updatedAt: Timestamp.now(),
+        });
+        
+    } catch (error) {
+        console.error("Error sharing note:", error);
+        throw error;
+    }
+};
 
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-    })) as INote[];
+export const unshareNoteFromUser = async (noteId: string, userUid: string, currentUserId: string): Promise<void> => {
+    try {
+        const note = await getNote(noteId);
+        if (!note) {
+            throw new Error("Note non trouvée");
+        }
+        
+        if (note.ownerId !== currentUserId) {
+            throw new Error("Seul le propriétaire peut modifier le partage");
+        }
+        
+        const updatedSharedWith = (note.sharedWith || []).filter(uid => uid !== userUid);
+        
+        await updateNote(noteId, {
+            sharedWith: updatedSharedWith,
+            updatedAt: Timestamp.now(),
+        });
+        
+    } catch (error) {
+        console.error("Error unsharing note:", error);
+        throw error;
+    }
 };

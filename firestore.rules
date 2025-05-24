@@ -2,18 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /notes/{noteId} {
-      // Anonymous user could read public notes
-      allow read: if request.auth == null && resource.data.isPublic == true;
-      
-      // Authenticated user could read public ones;
-      // read / add / update / delete its notes
-      allow read: if request.auth != null && 
-                  (resource.data.isPublic == true || 
-                  resource.data.ownerId == request.auth.uid);
       allow create: if request.auth != null && 
-                     request.resource.data.ownerId == request.auth.uid;
+                       request.auth.uid == request.resource.data.ownerId;
+
+      allow read: if resource.data.isPublic == true || 
+                    (request.auth != null && (
+                      request.auth.uid == resource.data.ownerId ||
+                      (resource.data.sharedWith != null && request.auth.uid in resource.data.sharedWith)
+                    ));
+
       allow update, delete: if request.auth != null && 
-                             resource.data.ownerId == request.auth.uid;
+                              request.auth.uid == resource.data.ownerId;                   
+    }
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && 
+                          request.auth.uid == userId;
+      
+      allow read: if request.auth != null;
     }
   }
 }

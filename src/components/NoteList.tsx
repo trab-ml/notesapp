@@ -7,8 +7,7 @@ import {
     updateNote,
     deleteNote,
     toggleFavorite,
-    getSharedNotes,
-    findUidByEmail,
+    shareNoteWithUser,
 } from "../services/NoteService";
 import { useAuth } from "../hooks/useAuth";
 import { Timestamp } from "firebase/firestore";
@@ -59,8 +58,10 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                 (note) => note.ownerId !== user?.uid
             );
         } else if (filterBy === "tag") {
-            filteredNotes = filteredNotes.filter(
-                (note) => note.tags && note.tags.length > 0
+            filteredNotes = filteredNotes.filter((note) =>
+                note.tags?.some((tag) =>
+                    tag.toLowerCase().includes(query.toLowerCase())
+                )
             );
         } else if (filterBy === "favorites") {
             filteredNotes = filteredNotes.filter((note) => note.isFavorite);
@@ -85,6 +86,12 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                     a.createdAt.toDate().getTime() -
                     b.createdAt.toDate().getTime()
             );
+        } else if (sortBy === "favorites-first") {
+            filteredNotes.sort(
+                (a, b) => Number(b.isFavorite) - Number(a.isFavorite)
+            );
+        } else if (sortBy === "a-z") {
+            filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
         }
 
         setDisplayedNotes(filteredNotes);
@@ -93,11 +100,13 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
     const loadNotes = async () => {
         setLoading(true);
         try {
-            const owned = user
+            let combinedNotes: INote[] = [];
+
+            combinedNotes = user 
                 ? await getUserNotesAndPublicOnes(user.uid)
                 : await getVisibleNotes();
-            const shared = user ? await getSharedNotes(user.uid) : [];
-            setNotes([...owned, ...shared]);
+
+            setNotes(combinedNotes);
         } catch (error) {
             console.error("Error loading notes:", error);
         } finally {
@@ -113,10 +122,11 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
     }) => {
         if (!user) return;
 
-        const note: Omit<INote, "id"> = {
+        const note: Omit<
+            INote,
+            "id" | "createdAt" | "updatedAt" | "sharedWith"
+        > = {
             ...values,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
             ownerId: user.uid,
         };
 
@@ -208,28 +218,18 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
 
     const handleShare = async (note: INote, email: string) => {
         try {
-            const sharedUserUid = await findUidByEmail(email);
-    
-            if (!sharedUserUid) {
-                alert("Utilisateur non trouvé.");
-                return;
-            }
-    
             if (!note.id) return;
-    
-            const updatedSharedWith = Array.from(new Set([...(note.sharedWith ?? []), sharedUserUid]));
-    
-            await updateNote(note.id, {
-                sharedWith: updatedSharedWith,
-                updatedAt: Timestamp.now(),
-            });
-    
-            alert("Note partagée !");
+            
+            await shareNoteWithUser(note.id, email, user?.uid || "");
+            alert("Note partagée avec succès !");
             await loadNotes();
+            
         } catch (error) {
             console.error("Erreur de partage :", error);
+            alert(error.message ?? "Erreur lors du partage de la note");
         }
     };
+
 
     return (
         <div className="mt-3">
@@ -314,7 +314,10 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                             }
                             onEdit={
                                 user?.uid === note.ownerId
-                                    ? () => setNoteToEdit(note)
+                                    ? (e) => {
+                                          e.stopPropagation();
+                                          setNoteToEdit(note);
+                                      }
                                     : undefined
                             }
                             onDelete={

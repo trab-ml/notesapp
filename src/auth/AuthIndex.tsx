@@ -93,7 +93,7 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             await updateProfile(userCredential.user, {
                 displayName: firstnameValue + " " + lastnameValue,
             });
-            saveUserProfile({uid: userCredential.user.uid, email: userCredential.user.email || ""});
+            await saveUserProfile({uid: userCredential.user.uid, email: userCredential.user.email || ""});
 
             auth.onAuthStateChanged(function (user) {
                 if (user) {

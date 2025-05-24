@@ -46,6 +46,8 @@ const SearchOptions: React.FC<TSearchOptions> = ({
                     <option value="all">Trier</option>
                     <option value="new-to-old">Du plus récent</option>
                     <option value="old-to-new">Du plus ancien</option>
+                    <option value="favorites-first">Favoris en haut</option>
+                    <option value="a-z">tri alphabétique</option>
                 </select>
 
                 <select

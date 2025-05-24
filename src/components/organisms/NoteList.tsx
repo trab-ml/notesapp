@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { INote } from "../../types/INote";
 import {
     getVisibleNotes,
@@ -18,6 +18,13 @@ import { LoadingSpinner } from "../atoms/LoadingSpinner";
 import { EmptyState } from "../atoms/EmptyState";
 import { TNoteListSearchOptions } from "../../types/SearchOptions";
 
+interface NoteFormValues {
+    title: string;
+    content: string;
+    tags: string[];
+    isPublic: boolean;
+}
+
 const NoteList: React.FC<TNoteListSearchOptions> = ({
     query,
     sortBy,
@@ -28,15 +35,10 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
     const [loading, setLoading] = useState(true);
     const [expandedNote, setExpandedNote] = useState<string | null>(null);
     const [noteToEdit, setNoteToEdit] = useState<INote | null>(null);
-    const [displayedNotes, setDisplayedNotes] = useState<INote[]>([]);
 
     const { user } = useAuth();
 
-    useEffect(() => {
-        loadNotes();
-    }, [user]);
-
-    useEffect(() => {
+    const displayedNotes = useMemo(() => {
         let filteredNotes = [...notes];
 
         // searching
@@ -94,15 +96,15 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
             filteredNotes.sort((a, b) => a.title.localeCompare(b.title));
         }
 
-        setDisplayedNotes(filteredNotes);
+        return filteredNotes;
     }, [query, filterBy, sortBy, notes, user?.uid]);
 
-    const loadNotes = async () => {
+    const loadNotes = useCallback(async () => {
         setLoading(true);
         try {
             let combinedNotes: INote[] = [];
 
-            combinedNotes = user 
+            combinedNotes = user
                 ? await getUserNotesAndPublicOnes(user.uid)
                 : await getVisibleNotes();
 
@@ -112,133 +114,200 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
 
-    const handleAddNote = async (values: {
-        title: string;
-        content: string;
-        tags: string[];
-        isPublic: boolean;
-    }) => {
-        if (!user) return;
+    useEffect(() => {
+        loadNotes();
+    }, [loadNotes]);
 
-        const note: Omit<
-            INote,
-            "id" | "createdAt" | "updatedAt" | "sharedWith"
-        > = {
-            ...values,
-            ownerId: user.uid,
-        };
+    const handleAddNote = useCallback(
+        async (values: NoteFormValues) => {
+            if (!user) return;
 
-        await addNote(note);
-        setShowAddForm(false);
-        await loadNotes();
-    };
-
-    const handleEditNote = async (values: {
-        title: string;
-        content: string;
-        tags: string[];
-        isPublic: boolean;
-    }) => {
-        if (!noteToEdit || !noteToEdit.id) return;
-
-        try {
-            await updateNote(noteToEdit.id, {
+            const note: Omit<
+                INote,
+                "id" | "createdAt" | "updatedAt" | "sharedWith"
+            > = {
                 ...values,
-                updatedAt: Timestamp.now(),
-            });
-            setNoteToEdit(null);
+                ownerId: user.uid,
+            };
+
+            await addNote(note);
+            setShowAddForm(false);
             await loadNotes();
-        } catch (error) {
-            console.error("Erreur lors de la mise à jour :", error);
-        }
-    };
+        },
+        [user, loadNotes]
+    );
 
-    const handleToggleIsPublic = async (e: React.MouseEvent, note: INote) => {
-        e.stopPropagation();
-        if (!note.id) return;
+    const handleEditNote = useCallback(
+        async (values: NoteFormValues) => {
+            if (!noteToEdit?.id) return;
 
-        try {
-            await updateNote(note.id, {
-                isPublic: !note.isPublic,
-                updatedAt: Timestamp.now(),
-            });
-            setNotes((prev) =>
-                prev.map((n) =>
-                    n.id === note.id
-                        ? {
-                              ...n,
-                              isPublic: !n.isPublic,
-                              updatedAt: Timestamp.now(),
-                          }
-                        : n
+            try {
+                await updateNote(noteToEdit.id, {
+                    ...values,
+                    updatedAt: Timestamp.now(),
+                });
+                setNoteToEdit(null);
+                await loadNotes();
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour :", error);
+            }
+        },
+        [noteToEdit, loadNotes]
+    );
+
+    const handleToggleIsPublic = useCallback(
+        async (e: React.MouseEvent, note: INote) => {
+            e.stopPropagation();
+            if (!note.id) return;
+
+            try {
+                const updatedVisibility = !note.isPublic;
+                await updateNote(note.id, {
+                    isPublic: updatedVisibility,
+                    updatedAt: Timestamp.now(),
+                });
+
+                setNotes((prev) =>
+                    prev.map((n) =>
+                        n.id === note.id
+                            ? {
+                                  ...n,
+                                  isPublic: updatedVisibility,
+                                  updatedAt: Timestamp.now(),
+                              }
+                            : n
+                    )
+                );
+            } catch (error) {
+                console.error("Error updating note visibility:", error);
+                await loadNotes();
+            }
+        },
+        [loadNotes]
+    );
+
+    const handleDeleteNote = useCallback(
+        async (e: React.MouseEvent, noteId: string) => {
+            e.stopPropagation();
+
+            if (
+                !window.confirm(
+                    "Êtes-vous sûr de vouloir supprimer cette note ?"
                 )
-            );
-        } catch (error) {
-            console.error("Error updating note visibility:", error);
-        }
-    };
+            ) {
+                return;
+            }
 
-    const handleDeleteNote = async (e: React.MouseEvent, noteId: string) => {
-        e.stopPropagation();
-        if (confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
             try {
                 await deleteNote(noteId);
                 setNotes((prev) => prev.filter((n) => n.id !== noteId));
             } catch (error) {
                 console.error("Error deleting note:", error);
+                await loadNotes();
             }
-        }
-    };
+        },
+        [loadNotes]
+    );
 
-    const toggleExpandNote = (noteId: string) => {
+    const toggleExpandNote = useCallback((noteId: string) => {
         setExpandedNote(expandedNote === noteId ? null : noteId);
-    };
+    }, []);
 
-    const handleAnonymousUser = () => {
+    const handleAnonymousUser = useCallback(() => {
         alert("Veuillez vous connecter pour ajouter une note.");
-    };
+    }, []);
 
-    const handleToggleFavorite = async (e: React.MouseEvent, note: INote) => {
-        e.stopPropagation();
-        if (!note.id) return;
-
-        try {
-            await toggleFavorite(note.id, !note.isFavorite);
-            setNotes((prev) =>
-                prev.map((n) =>
-                    n.id === note.id ? { ...n, isFavorite: !n.isFavorite } : n
-                )
-            );
-        } catch (error) {
-            console.error("Erreur lors du changement de favori :", error);
-        }
-    };
-
-    const handleShare = async (note: INote, email: string) => {
-        try {
+    const handleToggleFavorite = useCallback(
+        async (e: React.MouseEvent, note: INote) => {
+            e.stopPropagation();
             if (!note.id) return;
-            
-            await shareNoteWithUser(note.id, email, user?.uid || "");
-            alert("Note partagée avec succès !");
-            await loadNotes();
-            
-        } catch (error) {
-            console.error("Erreur de partage :", error);
-            alert(error.message ?? "Erreur lors du partage de la note");
-        }
-    };
 
+            try {
+                const newFavoriteStatus = !note.isFavorite;
+                await toggleFavorite(note.id, newFavoriteStatus);
+
+                setNotes((prev) =>
+                    prev.map((n) =>
+                        n.id === note.id
+                            ? { ...n, isFavorite: !n.isFavorite }
+                            : n
+                    )
+                );
+            } catch (error) {
+                console.error("Erreur lors du changement de favori :", error);
+                await loadNotes();
+            }
+        },
+        [loadNotes]
+    );
+
+    const handleShare = useCallback(
+        async (note: INote, email: string) => {
+            if (!note.id || !user?.uid) return;
+
+            try {
+                await shareNoteWithUser(note.id, email, user.uid);
+                alert("Note partagée avec succès !");
+                await loadNotes();
+            } catch (error) {
+                console.error("Error sharing note:", error);
+                const errorMessage =
+                    error instanceof Error
+                        ? error.message
+                        : "Erreur lors du partage de la note";
+                alert(errorMessage);
+            }
+        },
+        [user?.uid, loadNotes]
+    );
+
+    const handleEditClick = useCallback((e: React.MouseEvent, note: INote) => {
+        e.stopPropagation();
+        setNoteToEdit(note);
+    }, []);
+
+    const handleAddButtonClick = useCallback(() => {
+        if (user) {
+            setShowAddForm(true);
+        } else {
+            handleAnonymousUser();
+        }
+    }, [user, handleAnonymousUser]);
+
+    const handleEmptyStateAction = useCallback(() => {
+        if (user) {
+            setShowAddForm(true);
+        } else {
+            handleAnonymousUser();
+        }
+    }, [user, handleAnonymousUser]);
+
+    const editFormInitialValues = useMemo(
+        () => ({
+            title: noteToEdit?.title ?? "",
+            content: noteToEdit?.content ?? "",
+            tags: noteToEdit?.tags?.join(", ") ?? "",
+            isPublic: noteToEdit?.isPublic ?? false,
+        }),
+        [noteToEdit]
+    );
+
+    if (loading) {
+        return (
+            <div className="mt-3">
+                <LoadingSpinner />
+            </div>
+        );
+    }
 
     return (
         <div className="mt-3">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Notes</h2>
                 <button
-                    onClick={() =>
-                        user ? setShowAddForm(true) : handleAnonymousUser()
-                    }
+                    onClick={handleAddButtonClick}
                     className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1 rounded-md flex items-center"
                 >
                     <svg
@@ -278,26 +347,17 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                 title="Modifier la note"
             >
                 <NoteForm
-                    initialValues={{
-                        title: noteToEdit?.title ?? "",
-                        content: noteToEdit?.content ?? "",
-                        tags: noteToEdit?.tags?.join(", ") ?? "",
-                        isPublic: noteToEdit?.isPublic ?? false,
-                    }}
+                    initialValues={editFormInitialValues}
                     onSubmit={handleEditNote}
                     onCancel={() => setNoteToEdit(null)}
                 />
             </Modal>
 
-            {loading ? (
-                <LoadingSpinner />
-            ) : displayedNotes.length === 0 ? (
+            {displayedNotes.length === 0 ? (
                 <EmptyState
                     message="Aucune note disponible."
                     actionText="Créer votre première note"
-                    onAction={() =>
-                        user ? setShowAddForm(true) : handleAnonymousUser()
-                    }
+                    onAction={handleEmptyStateAction}
                 />
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -314,10 +374,7 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                             }
                             onEdit={
                                 user?.uid === note.ownerId
-                                    ? (e) => {
-                                          e.stopPropagation();
-                                          setNoteToEdit(note);
-                                      }
+                                    ? (e) => handleEditClick(e, note)
                                     : undefined
                             }
                             onDelete={
@@ -335,8 +392,7 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
                                 user?.uid === note.ownerId
                                     ? handleShare
                                     : undefined
-                           
-                                }
+                            }
                         />
                     ))}
                 </div>

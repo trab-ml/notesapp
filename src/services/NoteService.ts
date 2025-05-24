@@ -32,6 +32,7 @@ const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
         updatedAt: data.updatedAt || Timestamp.now(),
         tags: data.tags || [],
         ownerId: data.ownerId || "",
+        ownerEmail: data.ownerEmail || "",
         isFavorite: !!data.isFavorite,
         sharedWith: data.sharedWith || [],
     };

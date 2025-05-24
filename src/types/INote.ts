@@ -9,6 +9,7 @@ export interface INote {
     updatedAt: Timestamp;
     tags: string[];
     ownerId: string;
+    ownerEmail: string | null;
     isFavorite?: boolean;
     sharedWith?: string[]; // list of user IDs
 }

@@ -53,6 +53,7 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
             await addNewNote({
                 ...values,
                 ownerId: user.uid,
+                ownerEmail: user.email,
             });
             setShowAddForm(false);
         } catch (error) {

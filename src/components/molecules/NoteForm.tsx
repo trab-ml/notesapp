@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NoteFormValues } from './NoteModals';
 
 interface NoteFormProps {
     initialValues?: {
@@ -7,12 +8,7 @@ interface NoteFormProps {
         tags: string;
         isPublic: boolean;
     };
-    onSubmit: (values: {
-        title: string;
-        content: string;
-        tags: string[];
-        isPublic: boolean;
-    }) => Promise<void>;
+    onSubmit: (values: NoteFormValues) => void;
     onCancel: () => void;
 }
 

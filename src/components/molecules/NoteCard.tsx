@@ -10,7 +10,7 @@ interface NoteCardProps {
   isExpanded: boolean;
   onToggleExpand: (noteId: string) => void;
   onToggleVisibility?: (e: React.MouseEvent, note: INote) => void;
-  onEdit?: () => void;
+  onEdit?: (note: INote) => void;
   onDelete?: (e: React.MouseEvent, noteId: string) => void;
   isOwner: boolean;
   onToggleFavorite?: (e: React.MouseEvent, note: INote) => void;
@@ -173,7 +173,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit();
+                      onEdit(note);
                     }}
                     className="text-orange-600 hover:text-orange-800"
                     title="Modifier la note"

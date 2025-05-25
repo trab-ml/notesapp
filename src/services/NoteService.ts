@@ -16,10 +16,12 @@ import {
     QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { INote } from "../types/INote";
-import { uid } from 'uid/secure';
+import { uid } from "uid/secure";
 
 const NOTES_COLLECTION = "notes";
 const USERS_COLLECTION = "users";
+
+const now = () => Timestamp.now();
 
 const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
     const data = doc.data();
@@ -28,8 +30,8 @@ const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
         title: data.title || "",
         content: data.content || "",
         isPublic: !!data.isPublic,
-        createdAt: data.createdAt || Timestamp.now(),
-        updatedAt: data.updatedAt || Timestamp.now(),
+        createdAt: data.createdAt || now(),
+        updatedAt: data.updatedAt || now(),
         tags: data.tags || [],
         ownerId: data.ownerId || "",
         ownerEmail: data.ownerEmail || "",
@@ -38,49 +40,50 @@ const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
     };
 };
 
-export const saveUserProfile = async (user: { uid: string, email: string }) => {
+export const saveUserProfile = async (user: { uid: string; email: string }) => {
     const userRef = doc(db, USERS_COLLECTION, user.uid);
     const docSnap = await getDoc(userRef);
 
     if (!docSnap.exists()) {
-        await setDoc(userRef, {
-            uid: user.uid,
-            email: user.email,
-        });
+        await setDoc(userRef, user);
     }
 };
 
 export const findUidByEmail = async (email: string): Promise<string | null> => {
-    const q = query(collection(db, USERS_COLLECTION), where("email", "==", email));
+    const q = query(
+        collection(db, USERS_COLLECTION),
+        where("email", "==", email)
+    );
     const snapshot = await getDocs(q);
-
-    if (snapshot.empty) return null;
-
-    return snapshot.docs[0].data().uid;
+    return snapshot.empty ? null : snapshot.docs[0].data().uid;
 };
 
-export const addNote = async (note: Omit<INote, "id" | "createdAt" | "updatedAt" | "sharedWith">): Promise<string> => {
+export const addNote = async (
+    note: Omit<INote, "id" | "createdAt" | "updatedAt" | "sharedWith">
+): Promise<string> => {
     try {
-        if (!note.title.trim() || note.title.trim().length < 5) {
-            throw new Error("Le titre de la note doit contenir au moins 5 caractères");
-        }
-        
-        if (!note.content.trim() || note.content.trim().length < 10) {
-            throw new Error("Le contenu de la note doit contenir au moins 10 caractères");
-        }
-        
-        if (!note.ownerId) {
-            throw new Error("L'ID du propriétaire est requis");
-        }
+        const { title, content, ownerId } = note;
 
-        const docRef = await addDoc(collection(db, NOTES_COLLECTION), {
+        if (!title?.trim() || title.length < 5)
+            throw new Error(
+                "Le titre de la note doit contenir au moins 5 caractères"
+            );
+        if (!content?.trim() || content.length < 10)
+            throw new Error(
+                "Le contenu de la note doit contenir au moins 10 caractères"
+            );
+        if (!ownerId) throw new Error("L'ID du propriétaire est requis");
+
+        const newNote = {
             ...note,
             id: uid(),
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
+            createdAt: now(),
+            updatedAt: now(),
             isFavorite: false,
             sharedWith: [],
-        });
+        };
+
+        const docRef = await addDoc(collection(db, NOTES_COLLECTION), newNote);
         return docRef.id;
     } catch (error) {
         console.error("Error adding note:", error);
@@ -121,43 +124,49 @@ export const getVisibleNotes = async (): Promise<INote[]> => {
  * @param userId - The ID of the user whose notes are to be fetched.
  * @returns A promise that resolves to an array of notes.
  */
-export const getUserNotesAndPublicOnes = async (userId: string): Promise<INote[]> => {
+export const getUserNotesAndPublicOnes = async (
+    userId: string
+): Promise<INote[]> => {
     try {
-        const userNotesQuery = query(
-            collection(db, NOTES_COLLECTION),
-            where("ownerId", "==", userId),
-            orderBy("updatedAt", "desc")
-        );
-        
-        const userNotesSnapshot = await getDocs(userNotesQuery);
-        const userNotes = userNotesSnapshot.docs.map(convertDocToNote);
-        
-        const publicNotesQuery = query(
-            collection(db, NOTES_COLLECTION),
-            where("isPublic", "==", true),
-            where("ownerId", "!=", userId),
-            orderBy("ownerId"),
-            orderBy("updatedAt", "desc")
-        );
-        
-        const publicNotesSnapshot = await getDocs(publicNotesQuery);
-        const publicNotes = publicNotesSnapshot.docs.map(convertDocToNote);
-        
-        const sharedNotesQuery = query(
-            collection(db, NOTES_COLLECTION),
-            where("sharedWith", "array-contains", userId)
-        );
-        
-        const sharedNotesSnapshot = await getDocs(sharedNotesQuery);
-        const sharedNotes = sharedNotesSnapshot.docs.map(convertDocToNote);
-        
-        const allNotes = [...userNotes, ...publicNotes, ...sharedNotes];
-        const uniqueNotes = allNotes.filter((note, index, self) => 
-            index === self.findIndex(n => n.id === note.id)
+        const [ownNotes, publicNotes, sharedNotes] = await Promise.all([
+            getDocs(
+                query(
+                    collection(db, NOTES_COLLECTION),
+                    where("ownerId", "==", userId),
+                    orderBy("updatedAt", "desc")
+                )
+            ),
+            getDocs(
+                query(
+                    collection(db, NOTES_COLLECTION),
+                    where("isPublic", "==", true),
+                    where("ownerId", "!=", userId),
+                    orderBy("ownerId"),
+                    orderBy("updatedAt", "desc")
+                )
+            ),
+            getDocs(
+                query(
+                    collection(db, NOTES_COLLECTION),
+                    where("sharedWith", "array-contains", userId)
+                )
+            ),
+        ]);
+
+        const allNotes = [
+            ...ownNotes.docs,
+            ...publicNotes.docs,
+            ...sharedNotes.docs,
+        ].map(convertDocToNote);
+
+        const uniqueNotes = allNotes.filter(
+            (note, index, self) =>
+                index === self.findIndex((n) => n.id === note.id)
         );
 
-        return uniqueNotes.sort((a, b) => 
-            b.updatedAt.toDate().getTime() - a.updatedAt.toDate().getTime()
+        return uniqueNotes.sort(
+            (a, b) =>
+                b.updatedAt.toDate().getTime() - a.updatedAt.toDate().getTime()
         );
     } catch (error) {
         console.error("Error fetching user and public notes:", error);
@@ -188,68 +197,65 @@ export const deleteNote = async (noteId: string): Promise<void> => {
 
 export const toggleFavorite = async (noteId: string, isFavorite: boolean) => {
     const noteRef = doc(db, NOTES_COLLECTION, noteId);
-    await updateDoc(noteRef, {
-        isFavorite,
-        updatedAt: Timestamp.now(),
-    });
+    await updateDoc(noteRef, { isFavorite, updatedAt: now() });
 };
 
-export const shareNoteWithUser = async (noteId: string, userEmail: string, currentUserId: string): Promise<void> => {
+export const shareNoteWithUser = async (
+    noteId: string,
+    userEmail: string,
+    currentUserId: string
+): Promise<void> => {
     try {
         const sharedUserUid = await findUidByEmail(userEmail);
-        
-        if (!sharedUserUid) {
-            throw new Error("Utilisateur non trouvé");
-        }
-        
-        if (sharedUserUid === currentUserId) {
-            throw new Error("Vous ne pouvez pas partager une note avec vous-même");
-        }
-        
+        if (!sharedUserUid) throw new Error("Utilisateur non trouvé");
+        if (sharedUserUid === currentUserId)
+            throw new Error(
+                "Vous ne pouvez pas partager une note avec vous-même"
+            );
+
         const note = await getNote(noteId);
-        if (!note) {
-            throw new Error("Note non trouvée");
-        }
-        
-        if (note.ownerId !== currentUserId) {
+        if (!note) throw new Error("Note non trouvée");
+        if (note.ownerId !== currentUserId)
             throw new Error("Seul le propriétaire peut partager cette note");
-        }
-        
-        if (note.sharedWith?.includes(sharedUserUid)) {
+
+        if (note.sharedWith?.includes(sharedUserUid))
             throw new Error("La note est déjà partagée avec cet utilisateur");
-        }
-        
+
         const updatedSharedWith = [...(note.sharedWith || []), sharedUserUid];
-        
+
         await updateNote(noteId, {
             sharedWith: updatedSharedWith,
-            updatedAt: Timestamp.now(),
+            updatedAt: now(),
         });
-        
     } catch (error) {
         console.error("Error sharing note:", error);
         throw error;
     }
 };
 
-export const unshareNoteFromUser = async (noteId: string, userUid: string, currentUserId: string): Promise<void> => {
+export const unshareNoteFromUser = async (
+    noteId: string,
+    userUid: string,
+    currentUserId: string
+): Promise<void> => {
     try {
         const note = await getNote(noteId);
         if (!note) {
             throw new Error("Note non trouvée");
         }
-        
+
         if (note.ownerId !== currentUserId) {
             throw new Error("Seul le propriétaire peut modifier le partage");
         }
-        
-        const updatedSharedWith = (note.sharedWith || []).filter(uid => uid !== userUid);
-        
+
+        const updatedSharedWith = (note.sharedWith || []).filter(
+            (uid) => uid !== userUid
+        );
+
         await updateNote(noteId, {
             sharedWith: updatedSharedWith,
-            updatedAt: Timestamp.now(),
+            updatedAt: now(),
         });
-        
     } catch (error) {
         console.error("Error unsharing note:", error);
         throw error;

@@ -12,6 +12,7 @@ export default function App() {
                 <Route path="/" element={<Root isLogin={true} />} />
                 <Route path="/register" element={<Root isLogin={false} />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/profile" element={<ForgotPassword />} />
                 <Route path="/home" element={<Home />} />
                 <Route path="*" element={<NoMatch />} />
             </Routes>

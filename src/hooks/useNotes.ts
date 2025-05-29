@@ -1,14 +1,6 @@
 import { useCallback, useState, useEffect } from "react";
 import { INote } from "../types/INote";
-import {
-    getVisibleNotes,
-    getUserNotesAndPublicOnes,
-    addNote,
-    updateNote,
-    deleteNote,
-    toggleFavorite,
-    shareNoteWithUser,
-} from "../services/noteService";
+import { notesService } from "../services/notesService";
 import { Timestamp } from "firebase/firestore";
 
 export const useNotes = (userId?: string) => {
@@ -19,8 +11,8 @@ export const useNotes = (userId?: string) => {
         setLoading(true);
         try {
             const combinedNotes = userId
-                ? await getUserNotesAndPublicOnes(userId)
-                : await getVisibleNotes();
+                ? await notesService.getUserNotesAndPublicOnes(userId)
+                : await notesService.getVisibleNotes();
             setNotes(combinedNotes);
         } catch (error) {
             console.error("Error loading notes:", error);
@@ -31,7 +23,7 @@ export const useNotes = (userId?: string) => {
 
     const addNewNote = useCallback(async (noteData: Omit<INote, "id" | "createdAt" | "updatedAt" | "sharedWith">) => {
         try {
-            await addNote(noteData);
+            await notesService.addNote(noteData);
             await loadNotes();
         } catch (error) {
             console.error("Error adding note:", error);
@@ -41,7 +33,7 @@ export const useNotes = (userId?: string) => {
 
     const updateExistingNote = useCallback(async (noteId: string, updates: Partial<INote>) => {
         try {
-            await updateNote(noteId, { ...updates, updatedAt: Timestamp.now() });
+            await notesService.updateNote(noteId, { ...updates, updatedAt: Timestamp.now() });
             setNotes(prev => prev.map(note => 
                 note.id === noteId ? { ...note, ...updates, updatedAt: Timestamp.now() } : note
             ));
@@ -54,7 +46,7 @@ export const useNotes = (userId?: string) => {
 
     const removeNote = useCallback(async (noteId: string) => {
         try {
-            await deleteNote(noteId);
+            await notesService.deleteNote(noteId);
             setNotes(prev => prev.filter(note => note.id !== noteId));
         } catch (error) {
             console.error("Error deleting note:", error);
@@ -65,7 +57,7 @@ export const useNotes = (userId?: string) => {
 
     const toggleNoteFavorite = useCallback(async (noteId: string, isFavorite: boolean) => {
         try {
-            await toggleFavorite(noteId, isFavorite);
+            await notesService.toggleFavorite(noteId, isFavorite);
             setNotes(prev => prev.map(note =>
                 note.id === noteId ? { ...note, isFavorite } : note
             ));
@@ -78,7 +70,7 @@ export const useNotes = (userId?: string) => {
 
     const shareNote = useCallback(async (noteId: string, email: string, ownerId: string) => {
         try {
-            await shareNoteWithUser(noteId, email, ownerId);
+            await notesService.shareNoteWithUser(noteId, email, ownerId);
             await loadNotes();
         } catch (error) {
             console.error("Error sharing note:", error);

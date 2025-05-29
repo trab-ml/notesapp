@@ -14,7 +14,7 @@ import {
     signInWithEmailAndPassword,
     updateProfile,
 } from "firebase/auth";
-import { saveUserProfile } from "../services/noteService";
+import { notesService } from "../services/notesService";
 
 /**
  * Reusable component for authentification
@@ -93,7 +93,7 @@ const AuthIndex: React.FC<ILogin> = ({ isLogin }) => {
             await updateProfile(userCredential.user, {
                 displayName: firstnameValue + " " + lastnameValue,
             });
-            await saveUserProfile({uid: userCredential.user.uid, email: userCredential.user.email || ""});
+            await notesService.saveUserProfile({uid: userCredential.user.uid, email: userCredential.user.email || ""});
 
             auth.onAuthStateChanged(function (user) {
                 if (user) {

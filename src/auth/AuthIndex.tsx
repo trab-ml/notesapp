@@ -14,7 +14,7 @@ import {
     signInWithEmailAndPassword,
     updateProfile,
 } from "firebase/auth";
-import { saveUserProfile } from "../services/NoteService";
+import { saveUserProfile } from "../services/noteService";
 
 /**
  * Reusable component for authentification

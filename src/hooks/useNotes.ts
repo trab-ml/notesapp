@@ -8,7 +8,7 @@ import {
     deleteNote,
     toggleFavorite,
     shareNoteWithUser,
-} from "../services/NoteService";
+} from "../services/noteService";
 import { Timestamp } from "firebase/firestore";
 
 export const useNotes = (userId?: string) => {

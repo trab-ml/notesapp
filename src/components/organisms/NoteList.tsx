@@ -46,89 +46,105 @@ const NoteList: React.FC<TNoteListSearchOptions> = ({
         user?.uid
     );
 
-    const handleAddNote = useCallback(async (values: NoteFormValues) => {
-        if (!user) return;
+    const handleAddNote = useCallback(
+        async (values: NoteFormValues) => {
+            if (!user) return;
 
-        try {
-            await addNewNote({
-                ...values,
-                ownerId: user.uid,
-                ownerEmail: user.email,
-            });
-            setShowAddForm(false);
-        } catch (error) {
-            console.error("Error adding note:", error);
-        }
-    }, [user, addNewNote]);
+            try {
+                await addNewNote({
+                    ...values,
+                    ownerId: user.uid,
+                    ownerEmail: user.email,
+                });
+                setShowAddForm(false);
+            } catch (error) {
+                console.error("Error adding note:", error);
+            }
+        },
+        [user, addNewNote]
+    );
 
-    const handleEditNote = useCallback(async (values: NoteFormValues) => {
-        if (!noteToEdit?.id) return;
+    const handleEditNote = useCallback(
+        async (values: NoteFormValues) => {
+            if (!noteToEdit?.id) return;
 
-        try {
-            await updateExistingNote(noteToEdit.id, values);
-            setNoteToEdit(null);
-        } catch (error) {
-            console.error("Error updating note:", error);
-        }
-    }, [noteToEdit, updateExistingNote]);
+            try {
+                await updateExistingNote(noteToEdit.id, values);
+                setNoteToEdit(null);
+            } catch (error) {
+                console.error("Error updating note:", error);
+            }
+        },
+        [noteToEdit, updateExistingNote]
+    );
 
-    const handleToggleVisibility = useCallback(async (e: React.MouseEvent, note: INote) => {
-        e.stopPropagation();
-        if (!note.id) return;
+    const handleToggleVisibility = useCallback(
+        async (e: React.MouseEvent, note: INote) => {
+            e.stopPropagation();
+            if (!note.id) return;
 
-        try {
-            await updateExistingNote(note.id, { isPublic: !note.isPublic });
-        } catch (error) {
-            console.error("Error updating note visibility:", error);
-        }
-    }, [updateExistingNote]);
+            try {
+                await updateExistingNote(note.id, { isPublic: !note.isPublic });
+            } catch (error) {
+                console.error("Error updating note visibility:", error);
+            }
+        },
+        [updateExistingNote]
+    );
 
-    const handleDeleteNote = useCallback(async (e: React.MouseEvent, noteId: string) => {
-        e.stopPropagation();
-        
-        if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) {
-            return;
-        }
+    const handleDeleteNote = useCallback(
+        async (e: React.MouseEvent, noteId: string) => {
+            e.stopPropagation();
+            if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette note ?")) 
+                return;
 
-        try {
-            await removeNote(noteId);
-        } catch (error) {
-            console.error("Error deleting note:", error);
-        }
-    }, [removeNote]);
+            try {
+                await removeNote(noteId);
+            } catch (error) {
+                console.error("Error deleting note:", error);
+            }
+        },
+        [removeNote]
+    );
 
-    const handleToggleFavorite = useCallback(async (e: React.MouseEvent, note: INote) => {
-        e.stopPropagation();
-        if (!note.id) return;
+    const handleToggleFavorite = useCallback(
+        async (e: React.MouseEvent, note: INote) => {
+            e.stopPropagation();
+            if (!note.id) return;
 
-        try {
-            await toggleNoteFavorite(note.id, !note.isFavorite);
-        } catch (error) {
-            console.error("Error toggling favorite:", error);
-        }
-    }, [toggleNoteFavorite]);
+            try {
+                await toggleNoteFavorite(note.id, !note.isFavorite);
+            } catch (error) {
+                console.error("Error toggling favorite:", error);
+            }
+        },
+        [toggleNoteFavorite]
+    );
 
-    const handleShare = useCallback(async (note: INote, email: string) => {
-        if (!note.id || !user?.uid) return;
+    const handleShare = useCallback(
+        async (note: INote, email: string) => {
+            if (!note.id || !user?.uid) return;
 
-        try {
-            await shareNote(note.id, email, user.uid);
-            alert("Note partagée avec succès !");
-        } catch (error) {
-            console.error("Error sharing note:", error);
-            const errorMessage = error instanceof Error 
-                ? error.message 
-                : "Erreur lors du partage de la note";
-            alert(errorMessage);
-        }
-    }, [user?.uid, shareNote]);
+            try {
+                await shareNote(note.id, email, user.uid);
+                alert("Note partagée avec succès !");
+            } catch (error) {
+                console.error("Error sharing note:", error);
+                const errorMessage = error instanceof Error
+                        ? error.message
+                        : "Erreur lors du partage de la note";
+                alert(errorMessage);
+            }
+        },
+        [user?.uid, shareNote]
+    );
 
     const handleEditClick = useCallback((note: INote) => {
         setNoteToEdit(note);
     }, []);
 
     const toggleExpandNote = useCallback((noteId: string) => {
-        setExpandedNote(prev => prev === noteId ? null : noteId);
+        setExpandedNote((prev) => (prev === noteId ? null : noteId));
     }, []);
 
     const handleEmptyStateAction = useCallback(() => {

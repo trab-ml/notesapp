@@ -1,16 +1,20 @@
 import React from 'react';
-import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 
 interface NetworkStatusIndicatorProps {
-    syncStatus?: 'synced' | 'syncing' | 'offline';
+    showDetailedMessages?: boolean;
+    notesCount?: number;
+    className?: string;
 }
 
-export const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({ 
-    syncStatus = 'synced' 
+export const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
+    showDetailedMessages = false,
+    notesCount = 0,
+    className = ""
 }) => {
-    const isOnline = useNetworkStatus();
+    const { syncStatus, isOnline } = useSyncStatus();
 
-    const getStatusInfo = () => {
+    const getStatus = () => {
         if (!isOnline) {
             return {
                 color: 'bg-red-500',
@@ -26,27 +30,51 @@ export const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({
                     text: 'Synchronisation...',
                     icon: '🔄'
                 };
-            case 'offline':
+            case 'error':
                 return {
-                    color: 'bg-orange-500',
-                    text: 'Données locales',
-                    icon: '💾'
+                    color: 'bg-red-500',
+                    text: 'Erreur',
+                    icon: '⚠️'
                 };
             default:
                 return {
                     color: 'bg-green-500',
-                    text: 'Synchronisé',
+                    text: 'En ligne',
                     icon: '✓'
                 };
         }
     };
 
-    const status = getStatusInfo();
+    const getDetailedMessage = () => {
+        if (!showDetailedMessages) return null;
+        
+        if (!isOnline) {
+            return notesCount === 0 
+                ? "Connectez-vous pour voir vos notes"
+                : "Mode hors ligne - changements synchronisés à la reconnexion";
+        }
+        
+        if (syncStatus === 'syncing') return "Synchronisation...";
+        if (syncStatus === 'error') return "Erreur de connexion";
+        
+        return null;
+    };
+
+    const status = getStatus();
+    const message = getDetailedMessage();
 
     return (
-        <div className={`max-w-fit mt-2 flex items-center space-x-2 px-3 rounded-full ${status.color} text-white text-sm`}>
-            <span>{status.icon}</span>
-            <span>{status.text}</span>
+        <div className={className}>
+            <div className={`inline-flex items-center px-2 py-1 rounded text-xs text-white ${status.color}`}>
+                <span className="mr-1">{status.icon}</span>
+                {status.text}
+            </div>
+            
+            {message && (
+                <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-700">
+                    {message}
+                </div>
+            )}
         </div>
     );
 };

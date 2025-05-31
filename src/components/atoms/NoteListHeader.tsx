@@ -1,5 +1,4 @@
 import React from "react";
-import { NetworkStatusIndicator } from "../molecules/NetworkStatusIndicator";
 
 interface NoteListHeaderProps {
     onAddNote: () => void;
@@ -19,14 +18,13 @@ export const NoteListHeader: React.FC<NoteListHeaderProps> = ({
     };
 
     return (
-        <div className="flex justify-between items-center mb-4">
+        <div className="w-100 flex justify-between">
             <h2 className="text-xl font-bold">Notes</h2>
 
-            <div className="w-75 flex justify-between items-center">
-                <NetworkStatusIndicator />
+            <div>
                 <button
                     onClick={handleAddButtonClick}
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1 rounded-md flex items-center"
+                    className="bg-indigo-500 hover:bg-indigo-600 text-white text-sm px-3 py-1 rounded-md flex justify-center items-center"
                 >
                     <svg
                         width="12"

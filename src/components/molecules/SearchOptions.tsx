@@ -21,7 +21,7 @@ const SearchOptions: React.FC<TSearchOptions> = ({
             <div className="flex">
                 <input
                     type="text"
-                    placeholder="example: react"
+                    placeholder="exemple: react"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="w-full md:w-80 text-indigo-600 px-3 h-10 rounded-l border-2 border-indigo-600 focus:outline-none focus:border-indigo-600"

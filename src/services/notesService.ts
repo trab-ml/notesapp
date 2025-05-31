@@ -14,6 +14,7 @@ import {
     Timestamp,
     DocumentData,
     QueryDocumentSnapshot,
+    onSnapshot,
 } from "firebase/firestore";
 import { INote } from "../types/INote";
 import { uid } from "uid/secure";
@@ -331,6 +332,116 @@ class NotesService extends BaseNotesService {
         } catch (error) {
             console.error("Error unsharing note:", error);
             throw error;
+        }
+    }
+
+    subscribeToUserNotes(userId: string, callback: (notes: INote[]) => void): () => void {
+        if (!this.isOnline || !this.isNetworkEnabled) {
+            return () => {};
+        }
+        this.cleanup();
+        
+        return new Promise<() => void>((resolve) => {
+            setTimeout(() => {
+                const unsubscribes: (() => void)[] = [];
+                let isActive = true;
+                const subscriptionId = `${userId}-${Date.now()}`;
+        
+                const notesCollections: INote[][] = [[], [], []];
+        
+                const handleSnapshot = (index: number) => (snapshot: any) => {
+                    if (!isActive) return;
+                    
+                    try {
+                        notesCollections[index] = snapshot.docs.map(convertDocToNote);
+                        const allNotes = notesCollections.flat();
+        
+                        const uniqueNotes = allNotes.filter(
+                            (note, i, self) => i === self.findIndex((n) => n.id === note.id)
+                        );
+        
+                        const sortedNotes = [...uniqueNotes].sort((a, b) =>
+                            b.updatedAt.toMillis() - a.updatedAt.toMillis()
+                        );
+
+                        callback(sortedNotes);
+                    } catch (error) {
+                        console.error("Erreur dans handleSnapshot:", error);
+                    }
+                };
+
+                const queries = [
+                    query(collection(db, NOTES_COLLECTION), where("ownerId", "==", userId), orderBy("updatedAt", "desc")),
+                    query(collection(db, NOTES_COLLECTION), where("isPublic", "==", true), where("ownerId", "!=", userId), orderBy("updatedAt", "desc")),
+                    query(collection(db, NOTES_COLLECTION), where("sharedWith", "array-contains", userId)),
+                ];
+        
+                queries.forEach((q, i) => {
+                    try {
+                        const unsub = onSnapshot(q, 
+                            handleSnapshot(i),
+                            (error) => {
+                                console.error(`Erreur snapshot query ${i}:`, error);
+                                if (isActive) {
+                                    setTimeout(() => {
+                                        try {
+                                            unsub();
+                                        } catch (e) {
+                                            console.error("Erreur cleanup après erreur snapshot:", e);
+                                        }
+                                    }, 100);
+                                }
+                            }
+                        );
+                        unsubscribes.push(unsub);
+                    } catch (error) {
+                        console.error(`Erreur création subscription ${i}:`, error);
+                    }
+                });
+        
+                const cleanup = () => {
+                    isActive = false;
+                    unsubscribes.forEach((unsub, index) => {
+                        try {
+                            unsub();
+                        } catch (error) {
+                            console.error(`Erreur lors du cleanup de la souscription ${index}:`, error);
+                        }
+                    });
+                    this.activeSubscriptions.delete(subscriptionId);
+                };
+        
+                this.activeSubscriptions.set(subscriptionId, cleanup);
+                resolve(cleanup);
+            }, 100);
+        });
+    }
+
+    cleanup() {
+        const subscriptionsToClean = Array.from(this.activeSubscriptions.entries());
+        this.activeSubscriptions.clear();
+        
+        subscriptionsToClean.forEach(([subscriptionId, unsubscribe]) => {
+            try {
+                unsubscribe();
+            } catch (error) {
+                console.error(`Erreur lors du cleanup pour la souscription ${subscriptionId}:`, error);
+            }
+        });
+
+        if (this.retryTimeout) {
+            clearTimeout(this.retryTimeout);
+            this.retryTimeout = null;
+        }
+    }
+
+    destroy() {
+        this.cleanup();
+        this.syncStatusCallbacks.clear();
+        
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('online', this.handleOnline.bind(this));
+            window.removeEventListener('offline', this.handleOffline.bind(this));
         }
     }
 }

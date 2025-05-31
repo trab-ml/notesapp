@@ -14,12 +14,10 @@ import {
     Timestamp,
     DocumentData,
     QueryDocumentSnapshot,
-    enableNetwork,
-    disableNetwork,
-    onSnapshot,
 } from "firebase/firestore";
 import { INote } from "../types/INote";
 import { uid } from "uid/secure";
+import { BaseNotesService, PendingOperation } from "./baseNotesService";
 
 const NOTES_COLLECTION = "notes";
 const USERS_COLLECTION = "users";
@@ -37,37 +35,48 @@ const convertDocToNote = (doc: QueryDocumentSnapshot<DocumentData>): INote => {
         updatedAt: data.updatedAt || now(),
         tags: data.tags || [],
         ownerId: data.ownerId || "",
-        ownerEmail: data.ownerEmail || "",
+        ownerEmail: data.ownerEmail ?? "",
         isFavorite: !!data.isFavorite,
         sharedWith: data.sharedWith || [],
     };
 };
 
-class NotesService {
-    private listeners: (() => void)[] = [];
+class NotesService extends BaseNotesService {
+    private activeSubscriptions = new Map<string, () => void>();
 
-    static async initializeOfflineSupport() {
-        try {
-            await enableNetwork(db);
-            console.log("Cache offline Firebase initialisé");
-        } catch (error) {
-            console.error("Erreur initialisation cache offline:", error);
-        }
+    constructor() {
+        super();
     }
 
-    async setNetworkEnabled(enabled: boolean) {
-        try {
-            if (enabled) {
-                await enableNetwork(db);
-            } else {
-                await disableNetwork(db);
-            }
-        } catch (error) {
-            console.error("Erreur changement état réseau:", error);
+    protected async executeOperation(operation: PendingOperation) {
+        const { type, noteId, data } = operation;
+        const noteRef = noteId ? doc(db, NOTES_COLLECTION, noteId) : null;
+
+        switch (type) {
+            case 'create':
+                await addDoc(collection(db, NOTES_COLLECTION), data);
+                break;
+            case 'update':
+            case 'favorite':
+            case 'share':
+            case 'unshare':
+                if (noteRef) await updateDoc(noteRef, data);
+                break;
+            case 'delete':
+                if (noteRef) await deleteDoc(noteRef);
+                break;
         }
     }
 
     async saveUserProfile(user: { uid: string; email: string }) {
+        if (!this.isOnline) {
+            this.addPendingOperation({
+                type: 'create',
+                data: { type: 'user_profile', user }
+            });
+            return;
+        }
+
         const userRef = doc(db, USERS_COLLECTION, user.uid);
         const docSnap = await getDoc(userRef);
 
@@ -77,43 +86,54 @@ class NotesService {
     }
 
     async findUidByEmail(email: string): Promise<string | null> {
-        const q = query(
-            collection(db, USERS_COLLECTION),
-            where("email", "==", email)
+        return this.executeWithOfflineSupport(
+            async () => {
+                const q = query(
+                    collection(db, USERS_COLLECTION),
+                    where("email", "==", email)
+                );
+                const snapshot = await getDocs(q);
+                return snapshot.empty ? null : snapshot.docs[0].data().uid;
+            },
+            () => null
         );
-        const snapshot = await getDocs(q);
-        return snapshot.empty ? null : snapshot.docs[0].data().uid;
     }
 
-    async addNote(
-        note: Omit<INote, "id" | "createdAt" | "updatedAt" | "sharedWith">
-    ): Promise<string> {
+    private validateNoteInput(note: { title?: string; content?: string; ownerId?: string }) {
+        if (!note.title?.trim() || note.title.length < 5) {
+            throw new Error("Le titre de la note doit contenir au moins 5 caractères");
+        }
+        if (!note.content?.trim() || note.content.length < 10) {
+            throw new Error("Le contenu de la note doit contenir au moins 10 caractères");
+        }
+        if (!note.ownerId) {
+            throw new Error("L'ID du propriétaire est requis");
+        }
+    }
+
+    async addNote(note: Omit<INote, "id" | "createdAt" | "updatedAt" | "sharedWith">): Promise<string> {
         try {
-            const { title, content, ownerId } = note;
+            this.validateNoteInput(note);
 
-            if (!title?.trim() || title.length < 5)
-                throw new Error(
-                    "Le titre de la note doit contenir au moins 5 caractères"
-                );
-            if (!content?.trim() || content.length < 10)
-                throw new Error(
-                    "Le contenu de la note doit contenir au moins 10 caractères"
-                );
-            if (!ownerId) throw new Error("L'ID du propriétaire est requis");
-
+            const noteId = uid();
             const newNote = {
                 ...note,
-                id: uid(),
+                id: noteId,
                 createdAt: now(),
                 updatedAt: now(),
                 isFavorite: false,
                 sharedWith: [],
             };
 
-            const docRef = await addDoc(
-                collection(db, NOTES_COLLECTION),
-                newNote
-            );
+            if (!this.isOnline) {
+                this.addPendingOperation({
+                    type: 'create',
+                    data: newNote
+                });
+                return noteId;
+            }
+
+            const docRef = await addDoc(collection(db, NOTES_COLLECTION), newNote);
             return docRef.id;
         } catch (error) {
             console.error("Error adding note:", error);
@@ -122,143 +142,170 @@ class NotesService {
     }
 
     async getNote(noteId: string): Promise<INote | null> {
-        try {
-            const noteDoc = await getDoc(doc(db, NOTES_COLLECTION, noteId));
-            return noteDoc.exists()
-                ? ({ id: noteDoc.id, ...noteDoc.data() } as INote)
-                : null;
-        } catch (error) {
-            console.error("Error getting note:", error);
-            throw error;
-        }
+        return this.executeWithOfflineSupport(
+            async () => {
+                const noteDoc = await getDoc(doc(db, NOTES_COLLECTION, noteId));
+                return noteDoc.exists()
+                    ? ({ id: noteDoc.id, ...noteDoc.data() } as INote)
+                    : null;
+            },
+            () => null
+        );
     }
 
     async getVisibleNotes(): Promise<INote[]> {
-        try {
-            const q = query(
-                collection(db, NOTES_COLLECTION),
-                where("isPublic", "==", true),
-                orderBy("updatedAt", "desc")
-            );
+        return this.executeWithOfflineSupport(
+            async () => {
+                const q = query(
+                    collection(db, NOTES_COLLECTION),
+                    where("isPublic", "==", true),
+                    orderBy("updatedAt", "desc")
+                );
 
-            const querySnapshot = await getDocs(q);
-            return querySnapshot.docs.map(convertDocToNote);
-        } catch (error) {
-            console.error("Error fetching visible notes:", error);
-            throw error;
-        }
+                const querySnapshot = await getDocs(q);
+                return querySnapshot.docs.map(convertDocToNote);
+            },
+            () => []
+        );
     }
 
-    /**
-     * Fetches notes for a specific user, including their own notes, public notes, and shared notes.
-     * @param userId - The ID of the user whose notes are to be fetched.
-     * @returns A promise that resolves to an array of notes.
-     */
     async getUserNotesAndPublicOnes(userId: string): Promise<INote[]> {
+        return this.executeWithOfflineSupport(
+            async () => {
+                const [ownNotes, publicNotes, sharedNotes] = await Promise.all([
+                    getDocs(
+                        query(
+                            collection(db, NOTES_COLLECTION),
+                            where("ownerId", "==", userId),
+                            orderBy("updatedAt", "desc")
+                        )
+                    ),
+                    getDocs(
+                        query(
+                            collection(db, NOTES_COLLECTION),
+                            where("isPublic", "==", true),
+                            where("ownerId", "!=", userId),
+                            orderBy("ownerId"),
+                            orderBy("updatedAt", "desc")
+                        )
+                    ),
+                    getDocs(
+                        query(
+                            collection(db, NOTES_COLLECTION),
+                            where("sharedWith", "array-contains", userId)
+                        )
+                    ),
+                ]);
+
+                const allNotes = [
+                    ...ownNotes.docs,
+                    ...publicNotes.docs,
+                    ...sharedNotes.docs,
+                ].map(convertDocToNote);
+
+                const uniqueNotes = allNotes.filter(
+                    (note, index, self) =>
+                        index === self.findIndex((n) => n.id === note.id)
+                );
+
+                return uniqueNotes.sort(
+                    (a, b) =>
+                        b.updatedAt.toDate().getTime() -
+                        a.updatedAt.toDate().getTime()
+                );
+            },
+            () => []
+        );
+    }
+
+    private async updateNoteWithPending(noteId: string, updates: Partial<INote>, operationType: 'update' | 'favorite' = 'update') {
+        const updateData = { ...updates, updatedAt: now() };
+
+        if (!this.isOnline) {
+            this.addPendingOperation({
+                type: operationType,
+                noteId,
+                data: updateData
+            });
+            return;
+        }
+
         try {
-            const [ownNotes, publicNotes, sharedNotes] = await Promise.all([
-                getDocs(
-                    query(
-                        collection(db, NOTES_COLLECTION),
-                        where("ownerId", "==", userId),
-                        orderBy("updatedAt", "desc")
-                    )
-                ),
-                getDocs(
-                    query(
-                        collection(db, NOTES_COLLECTION),
-                        where("isPublic", "==", true),
-                        where("ownerId", "!=", userId),
-                        orderBy("ownerId"),
-                        orderBy("updatedAt", "desc")
-                    )
-                ),
-                getDocs(
-                    query(
-                        collection(db, NOTES_COLLECTION),
-                        where("sharedWith", "array-contains", userId)
-                    )
-                ),
-            ]);
-
-            const allNotes = [
-                ...ownNotes.docs,
-                ...publicNotes.docs,
-                ...sharedNotes.docs,
-            ].map(convertDocToNote);
-
-            const uniqueNotes = allNotes.filter(
-                (note, index, self) =>
-                    index === self.findIndex((n) => n.id === note.id)
-            );
-
-            return uniqueNotes.sort(
-                (a, b) =>
-                    b.updatedAt.toDate().getTime() -
-                    a.updatedAt.toDate().getTime()
-            );
+            await updateDoc(doc(db, NOTES_COLLECTION, noteId), updateData);
         } catch (error) {
-            console.error("Error fetching user and public notes:", error);
-            throw new Error("Failed to load notes");
+            console.error(`Error ${operationType === 'update' ? 'updating' : 'toggling favorite'} note:`, error);
+            this.addPendingOperation({
+                type: operationType,
+                noteId,
+                data: updateData
+            });
+            throw error;
         }
     }
 
     async updateNote(noteId: string, updates: Partial<INote>): Promise<void> {
-        try {
-            await updateDoc(doc(db, NOTES_COLLECTION, noteId), updates);
-        } catch (error) {
-            console.error("Error updating note:", error);
-            throw error;
-        }
+        await this.updateNoteWithPending(noteId, updates);
     }
 
     async deleteNote(noteId: string): Promise<void> {
+        if (!this.isOnline) {
+            this.addPendingOperation({
+                type: 'delete',
+                noteId
+            });
+            return;
+        }
+
         try {
             await deleteDoc(doc(db, NOTES_COLLECTION, noteId));
         } catch (error) {
             console.error("Error deleting note:", error);
+            this.addPendingOperation({
+                type: 'delete',
+                noteId
+            });
             throw error;
         }
     }
 
     async toggleFavorite(noteId: string, isFavorite: boolean) {
-        const noteRef = doc(db, NOTES_COLLECTION, noteId);
-        await updateDoc(noteRef, { isFavorite, updatedAt: now() });
+        await this.updateNoteWithPending(noteId, { isFavorite }, 'favorite');
     }
 
-    async shareNoteWithUser(
-        noteId: string,
-        userEmail: string,
-        currentUserId: string
-    ): Promise<void> {
+    private async validateNoteSharing(noteId: string, currentUserId: string) {
+        const note = await this.getNote(noteId);
+        if (!note) throw new Error("Note non trouvée");
+        if (note.ownerId !== currentUserId) {
+            throw new Error("Seul le propriétaire peut partager cette note");
+        }
+        return note;
+    }
+
+    async shareNoteWithUser(noteId: string, userEmail: string, currentUserId: string): Promise<void> {
+        if (!this.isOnline) {
+            throw new Error("Le partage de notes n'est pas disponible hors ligne");
+        }
+
         try {
             const sharedUserUid = await this.findUidByEmail(userEmail);
             if (!sharedUserUid) throw new Error("Utilisateur non trouvé");
-            if (sharedUserUid === currentUserId)
-                throw new Error(
-                    "Vous ne pouvez pas partager une note avec vous-même"
-                );
+            if (sharedUserUid === currentUserId) {
+                throw new Error("Vous ne pouvez pas partager une note avec vous-même");
+            }
 
-            const note = await this.getNote(noteId);
-            if (!note) throw new Error("Note non trouvée");
-            if (note.ownerId !== currentUserId)
-                throw new Error(
-                    "Seul le propriétaire peut partager cette note"
-                );
+            const note = await this.validateNoteSharing(noteId, currentUserId);
 
-            if (note.sharedWith?.includes(sharedUserUid))
-                throw new Error(
-                    "La note est déjà partagée avec cet utilisateur"
-                );
+            if (note.sharedWith?.includes(sharedUserUid)) {
+                throw new Error("La note est déjà partagée avec cet utilisateur");
+            }
 
             const updatedSharedWith = [
                 ...(note.sharedWith || []),
                 sharedUserUid,
             ];
 
-            await this.updateNote(noteId, {
-                sharedWith: updatedSharedWith,
-                updatedAt: now(),
+            await this.updateNoteWithPending(noteId, {
+                sharedWith: updatedSharedWith
             });
         } catch (error) {
             console.error("Error sharing note:", error);
@@ -266,94 +313,25 @@ class NotesService {
         }
     }
 
-    async unshareNoteFromUser(
-        noteId: string,
-        userUid: string,
-        currentUserId: string
-    ): Promise<void> {
-        try {
-            const note = await this.getNote(noteId);
+    async unshareNoteFromUser(noteId: string, userUid: string, currentUserId: string): Promise<void> {
+        if (!this.isOnline) {
+            throw new Error("La modification du partage n'est pas disponible hors ligne");
+        }
 
-            if (!note) throw new Error("Note non trouvée");
-            if (note.ownerId !== currentUserId)
-                throw new Error(
-                    "Seul le propriétaire peut modifier le partage"
-                );
+        try {
+            const note = await this.validateNoteSharing(noteId, currentUserId);
 
             const updatedSharedWith = (note.sharedWith || []).filter(
                 (uid) => uid !== userUid
             );
 
-            await this.updateNote(noteId, {
-                sharedWith: updatedSharedWith,
-                updatedAt: now(),
+            await this.updateNoteWithPending(noteId, {
+                sharedWith: updatedSharedWith
             });
         } catch (error) {
             console.error("Error unsharing note:", error);
             throw error;
         }
-    }
-
-    subscribeToUserNotes(userId: string, callback: (notes: INote[]) => void): () => void {
-        const queries = [
-            query(
-                collection(db, NOTES_COLLECTION),
-                where("ownerId", "==", userId),
-                orderBy("updatedAt", "desc")
-            ),
-            query(
-                collection(db, NOTES_COLLECTION),
-                where("isPublic", "==", true),
-                where("ownerId", "!=", userId),
-                orderBy("ownerId"),
-                orderBy("updatedAt", "desc")
-            ),
-            query(
-                collection(db, NOTES_COLLECTION),
-                where("sharedWith", "array-contains", userId)
-            )
-        ];
-
-        const unsubscribes: (() => void)[] = [];
-        let allNotes: INote[] = [];
-
-        queries.forEach((q, index) => {
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const notes = snapshot.docs.map(convertDocToNote);
-                
-                if (index === 0) allNotes = allNotes.filter(n => n.ownerId !== userId);
-                if (index === 1) allNotes = allNotes.filter(n => !n.isPublic || n.ownerId === userId);
-                if (index === 2) allNotes = allNotes.filter(n => !n.sharedWith?.includes(userId));
-                
-                allNotes.push(...notes);
-                
-                const uniqueNotes = allNotes.filter(
-                    (note, i, self) => i === self.findIndex(n => n.id === note.id)
-                );
-                
-                uniqueNotes.sort((a, b) => 
-                    b.updatedAt.toDate().getTime() - a.updatedAt.toDate().getTime()
-                );
-                
-                callback(uniqueNotes);
-            }, (error) => {
-                console.error(`Erreur écoute query ${index}:`, error);
-            });
-            
-            unsubscribes.push(unsubscribe);
-        });
-
-        const cleanup = () => {
-            unsubscribes.forEach(unsub => unsub());
-        };
-        
-        this.listeners.push(cleanup);
-        return cleanup;
-    }
-
-    cleanup() {
-        this.listeners.forEach(cleanup => cleanup());
-        this.listeners = [];
     }
 }
 

@@ -29,6 +29,5 @@ dist-ssr
 
 # files to ignore
 todo.md
-.env
 .dockerignore
 ./rsrc/mock.excalidraw

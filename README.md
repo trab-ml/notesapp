@@ -45,8 +45,12 @@
 ### Installation
 
 ```bash
-docker-compose up -d
-docker-compose down -v
+
+docker compose build --no-cache
+docker compose up
+
+# docker-compose up -d
+# docker-compose down -v
 
 # OU
 # $ npm -v

@@ -1,5 +1,7 @@
 # [Application de prise de notes réactive](https://notesapp-f639b.web.app/)
 
+![lancer l'application](./rsrc/launch.gif)
+
 ## Technologies
 
 - [react](https://fr.legacy.reactjs.org/docs/getting-started.html)
